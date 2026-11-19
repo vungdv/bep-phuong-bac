@@ -1,0 +1,9 @@
+{
+  "languages": { "supported": ["vi", "en"], "fallback": "vi" },
+  "home": "orders",
+  "routesUrl": "./routes.config.json",
+  "apps": {
+    "orders": { "url": "./remotes/orders/orders-app.js", "tag": "orders-app" },
+    "orders-v2": { "url": "./remotes/orders-v2/orders-v2-app.js", "tag": "orders-v2-app" }
+  }
+}

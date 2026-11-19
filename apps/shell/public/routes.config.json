@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "path": "#/order", "app": "orders" },
+    { "path": "#/orderv2", "app": "orders-v2", "attributes": { "variant": "v2" } }
+  ]
+}

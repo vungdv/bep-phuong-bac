@@ -5,6 +5,7 @@ argument-hint: <spec path, e.g. specs/2026-11-19-micro-frontend-host.spec.md>
 ---
 
 # Execute a spec (hub-and-spoke)
+A spec that follows the spec driven development process. 
 
 You are the **orchestrator (hub)**. Workers and reviewers are spokes (subagents). They never talk to each other; everything goes through you. Their prompts must be self-contained.
 

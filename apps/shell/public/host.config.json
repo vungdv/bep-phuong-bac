@@ -3,7 +3,7 @@
   "home": "orders",
   "routesUrl": "./routes.config.json",
   "apps": {
-    "orders": { "url": "./remotes/orders/orders-app.js", "tag": "orders-app" },
+    "orders": { "url": "http://localhost:5174/src/orders-app.ts", "tag": "orders-app" },
     "orders-v2": { "url": "./remotes/orders-v2/orders-v2-app.js", "tag": "orders-v2-app" }
   }
 }

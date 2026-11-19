@@ -4,7 +4,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: { port: 5174, strictPort: true },
+  // hmr off: the shell imports the dev module cross-origin without the React Fast Refresh preamble.
+  server: { port: 5174, strictPort: true, hmr: false },
   build: {
     target: 'es2022',
     outDir: 'dist',

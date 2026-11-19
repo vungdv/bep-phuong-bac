@@ -19,3 +19,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Stage orders remote into the shell bundle
+        run: |
+          mkdir -p apps/shell/dist/remotes/orders
+          cp apps/orders/dist/orders-app.js apps/shell/dist/remotes/orders/

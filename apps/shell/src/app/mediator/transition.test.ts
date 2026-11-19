@@ -125,6 +125,22 @@ describe('transition: phase expectations', () => {
     expect(r.state.phase).toBe('appError');
     expect(r.commands).toContainEqual(expect.objectContaining({ kind: 'outlet.showError', scope: 'route' }));
   });
+  it('route/child logs use structured fields appId, route, target and activationId', () => {
+    const failed = run('loadingApp', {
+      type: 'appFailed', appId: 'order', target: { kind: 'route', activationId: 3 }, error: 'boom',
+    } as HostEvent);
+    const fields = (logs(failed.commands)[0] as { fields: Record<string, unknown> }).fields;
+    expect(fields).toMatchObject({
+      appId: 'order', route: states.loadingApp.hash, target: 'route', activationId: 3, error: 'boom',
+    });
+    expect(fields).not.toHaveProperty('app');
+    const child = run('appActive', {
+      type: 'appFailed', appId: 'ui-kit', target: { kind: 'child', parentId: 'order' }, error: 'x',
+    } as HostEvent);
+    expect((logs(child.commands)[0] as { fields: Record<string, unknown> }).fields).toMatchObject({
+      appId: 'ui-kit', route: states.appActive.hash, target: 'child', parentId: 'order',
+    });
+  });
   it('stale route results are ignored and logged', () => {
     for (const e of [
       { type: 'appLoaded', target: { kind: 'route', activationId: 2 } },

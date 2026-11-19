@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { ConfigError, ConfigLoader, validateHostConfig } from './registry';
+import { ConfigError, ConfigLoader, normalizeRoutePath, validateHostConfig } from './registry';
 
 const M = 'https://example.com/app/host.config.json';
 const ok = (body: unknown): Response =>
@@ -132,6 +134,13 @@ describe('validateHostConfig', () => {
       const r = validateHostConfig({ host, routes: { routes: [{ path: '#order', app: 'a' }] }, manifestUrl: M });
       expect(r.routes[0]?.path).toBe('#/order');
     });
+    it('strips only one leading slash after #', () => {
+      expect(has(errorsOf(host, { routes: [{ path: '#//order', app: 'a' }] }), 'invalid')).toBe(true);
+      expect(has(errorsOf(host, { routes: [{ path: '//order', app: 'a' }] }), 'invalid')).toBe(true);
+      expect(normalizeRoutePath('#order')).toBe('#/order');
+      expect(normalizeRoutePath('#/order')).toBe('#/order');
+      expect(normalizeRoutePath('/order')).toBe('#/order');
+    });
     it('rejects invalid paths', () => {
       expect(has(errorsOf(host, { routes: [{ path: '#/a/b', app: 'a' }] }), 'invalid')).toBe(true);
       expect(has(errorsOf(host, { routes: [{ path: '#/Up', app: 'a' }] }), 'invalid')).toBe(true);
@@ -240,6 +249,13 @@ describe('ConfigLoader', () => {
     expect(g).toHaveBeenCalledTimes(1);
   });
 
+  it('a 404 route map is a global ConfigError even when routesUrlHint equals routesUrl', async () => {
+    const f = router({ [M]: host });
+    await expect(
+      new ConfigLoader({ fetch: f as unknown as typeof fetch, routesUrlHint: './routes.config.json' }).load(M),
+    ).rejects.toMatchObject({ name: 'ConfigError', errors: ['routes.config.json: HTTP 404'] });
+  });
+
   it('manifest HTTP failure is a ConfigError', async () => {
     const f = router({ [M]: { ok: false, status: 500, json: async () => ({}) } as Response });
     await expect(new ConfigLoader({ fetch: f as unknown as typeof fetch }).load(M)).rejects.toMatchObject({
@@ -293,5 +309,27 @@ describe('ConfigLoader', () => {
     const f = router({ 'https://example.com/host.config.json': { apps } });
     const r = await new ConfigLoader({ fetch: f as unknown as typeof fetch, baseUrl: 'https://example.com/index.html' }).load('./host.config.json');
     expect(r.apps.a?.url).toBe('https://example.com/a.js');
+  });
+});
+
+describe('shipped config files', () => {
+  const read = (name: string): unknown =>
+    JSON.parse(readFileSync(join(process.cwd(), 'public', name), 'utf8'));
+  for (const [hostFile, routesFile] of [
+    ['host.config.json', 'routes.config.json'],
+    ['host.config.prod.json', 'routes.config.prod.json'],
+  ] as const) {
+    it(`${hostFile} + ${routesFile} validate`, () => {
+      const r = validateHostConfig({
+        host: read(hostFile),
+        routes: read(routesFile),
+        manifestUrl: 'https://example.com/host.config.json',
+      });
+      expect(r.routes.length).toBeGreaterThan(0);
+      expect(Object.keys(r.apps).length).toBeGreaterThan(0);
+    });
+  }
+  it('prod and dev route maps are identical', () => {
+    expect(read('routes.config.prod.json')).toEqual(read('routes.config.json'));
   });
 });

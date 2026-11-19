@@ -52,7 +52,7 @@ export interface StubMasterOptions {
  * Master: observes `lang` and `route`, shows the route, and renders `<childTag>` in its shadow root once
  * defined (forwarding `lang`), or a `[data-fallback]` element if the child is still undefined after the wait.
  */
-export function defineStubMaster({ tag, childTag, childWaitMs = 30 }: StubMasterOptions): void {
+export function defineStubMaster({ tag, childTag, childWaitMs = 150 }: StubMasterOptions): void {
   if (customElements.get(tag)) return;
   customElements.define(
     tag,

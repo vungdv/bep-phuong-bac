@@ -121,7 +121,7 @@ function onResult(
   const { target } = event;
   const failed = event.type === 'appFailed';
   const error = event.type === 'appFailed' ? event.error : undefined;
-  const base = { app: event.appId, ...targetFields(target) };
+  const base = { appId: event.appId, route: state.hash, ...targetFields(target) };
 
   if (target.kind === 'child') {
     return {

@@ -64,9 +64,9 @@ function isValidLanguageTag(tag: unknown): tag is string {
   }
 }
 
-/** `#order`, `/order`, `#/order` -> `#/order`. */
+/** `#order`, `/order`, `#/order` -> `#/order` (only one leading slash is stripped). */
 export function normalizeRoutePath(path: string): string {
-  return `#/${path.replace(/^#/, '').replace(/^\/+/, '')}`;
+  return `#/${path.replace(/^#/, '').replace(/^\//, '')}`;
 }
 
 function resolveUrl(value: string, base: string): string | undefined {

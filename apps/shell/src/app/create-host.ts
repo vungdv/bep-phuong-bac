@@ -3,6 +3,7 @@ import type { Label } from '@bpb/contracts';
 import { getBrowserLanguages } from '../i18n/language-store';
 import { resolveLanguage } from '../i18n/language-resolver';
 import { createTranslator } from '../i18n/messages';
+import { createTraceparent } from '../micro-frontends/trace';
 import { ConfigError, ConfigLoader, DEFAULT_LANGUAGES } from '../micro-frontends/registry';
 import type { ResolvedConfig as RegistryConfig } from '../micro-frontends/registry';
 import { createModuleLoader } from '../micro-frontends/loader';
@@ -141,6 +142,7 @@ export function createHost(options: CreateHostOptions = {}): Host {
       const configLoader = new ConfigLoader({
         ...(options.fetch ? { fetch: options.fetch } : {}),
         routesUrlHint,
+        headers: { traceparent: createTraceparent() },
         baseUrl: win.location.href,
       });
       const loaded = await configLoader.load(manifestUrl);

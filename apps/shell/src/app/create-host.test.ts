@@ -174,6 +174,21 @@ describe('createHost full flow', () => {
     expect(root.textContent).toContain('No apps registered');
   });
 
+  it('sends a valid traceparent header on the manifest and route map fetches', async () => {
+    const w = world();
+    const seen: Array<{ url: string; traceparent: string | null }> = [];
+    const inner = makeFetch(w);
+    setup(w, {
+      fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        seen.push({ url: String(input), traceparent: new Headers(init?.headers).get('traceparent') });
+        return inner(input, init);
+      }) as typeof fetch,
+    }).start();
+    await vi.waitFor(() => expect(mounted()?.localName).toBe(tagOrders()));
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+    for (const s of seen) expect(s.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+  });
+
   it('sets <html lang> from the browser language while the manifest is still loading', () => {
     document.documentElement.setAttribute('lang', 'vi');
     const pending = (() => new Promise<Response>(() => {})) as unknown as typeof fetch;

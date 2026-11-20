@@ -5,8 +5,14 @@ import { deliveredBox } from '../support/orders';
 test('Delivered survives reload and is seen from a second, freshly signed-in browser', async ({ page, browser }) => {
   await openAndSignIn(page, '/#/');
   const box = deliveredBox(page, 2);
-  await expect(box).not.toBeChecked();
   try {
+    // A box left checked by a crashed earlier run is restored first (and cleaned up in finally), then asserted.
+    if (await box.isChecked()) {
+      await box.click();
+      await expect(box).not.toBeChecked();
+      await expect(box).toBeEnabled();
+    }
+    await expect(box).not.toBeChecked();
     await box.click();
     await expect(box).toBeChecked();
     await expect(box).toBeEnabled(); // mutation settled

@@ -28,6 +28,12 @@ services:
       OrchardCore__OrchardCore_AutoSetup__Tenants__0__AdminPassword: ${ADMIN_PASSWORD:?set in .env}
       OrchardCore__Bpb__ScriptClientSecret: ${SCRIPT_CLIENT_SECRET:?set in .env}
       OrchardCore__Bpb__UiRedirectUris: ${UI_REDIRECT_URIS:-}
+      OrchardCore__Bpb__CorsAllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
+    volumes:
+      # Orchard tenant state (App_Data: shell settings and the data-protection keys that protect cookies and
+      # encrypted tokens). Without it a recreated container re-runs AutoSetup against the existing database and fails.
+      - appdata:/app/App_Data
+      - dpkeys-host:/root/.aspnet/DataProtection-Keys
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/live"]
       interval: 5s
@@ -37,3 +43,5 @@ services:
 
 volumes:
   pgdata:
+  appdata:
+  dpkeys-host:

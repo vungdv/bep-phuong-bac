@@ -240,8 +240,10 @@
           {
             "Name": "bpb",
             "AllowedOrigins": [
-              "http://localhost:5173",
-              "http://localhost:5174"
+              "[js: (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(0) || (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(0)]",
+              "[js: (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(1) || (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(0)]",
+              "[js: (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(2) || (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(0)]",
+              "[js: (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(3) || (configuration('Bpb:CorsAllowedOrigins') || 'http://localhost:5173 http://localhost:5174').split(/\\s+|,/).at(0)]"
             ],
             "AllowAnyOrigin": false,
             "AllowedMethods": [

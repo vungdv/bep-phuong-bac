@@ -25,10 +25,13 @@ First start auto-provisions the `Default` tenant (OrchardCore.AutoSetup) and run
 | `ADMIN_PASSWORD` | OC admin password (`...AutoSetup__Tenants__0__AdminPassword`) |
 | `KITCHEN_USERNAME`, `KITCHEN_PASSWORD` | the shared kitchen account used by the orders app; read only by `scripts/create-kitchen-user.sh` and the tests, never by the backend container |
 | `UI_REDIRECT_URIS` | optional, space-separated redirect URIs of the public client `bpb-orders-ui` (default `http://localhost:5173/ http://localhost:5174/`); set it for another origin (`OrchardCore__Bpb__UiRedirectUris`, read by the recipe) |
+| `CORS_ALLOWED_ORIGINS` | optional, space- or comma-separated browser origins allowed by CORS (default `http://localhost:5173 http://localhost:5174`; never `*`; at most 4, the recipe has four slots, extras are ignored; `OrchardCore__Bpb__CorsAllowedOrigins`) |
 | `SCRIPT_CLIENT_SECRET` | secret of the confidential client `bpb-orders-script` (`OrchardCore__Bpb__ScriptClientSecret`, read by the recipe via `configuration('Bpb:ScriptClientSecret')`) |
 | `OrchardCore__OrchardCore_AutoSetup__Tenants__0__DatabaseConnectionString` | PostgreSQL connection string (set by compose) |
 
-Non-secret defaults (provider `Postgres`, table prefix `bpb`, time zone) are in `appsettings.json`. CORS allowed origins (`http://localhost:5173`, `http://localhost:5174`) are in the recipe.
+Non-secret defaults (provider `Postgres`, table prefix `bpb`, time zone) are in `appsettings.json`. CORS allowed origins come from `CORS_ALLOWED_ORIGINS` (defaults in the recipe). Like the redirect URIs they are applied when the tenant is first created; changing them later needs a fresh database (`docker compose down -v`).
+
+Persistence: the named volume `appdata` (`/app/App_Data`: tenant shell settings and the tenant's data-protection keys) and `dpkeys-host` (`/root/.aspnet/DataProtection-Keys`) survive container recreation, so issued tokens and cookies keep working and a recreated container does not re-run setup against the existing database. `docker compose down -v` removes them together with the database.
 
 ## Endpoints
 

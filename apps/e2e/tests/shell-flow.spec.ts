@@ -16,7 +16,7 @@ test.describe('shell (vi)', () => {
     }
     await expect(page.getByRole('columnheader')).toHaveCount(6);
     await expectSixOrders(page);
-    // Names come from the backend seed (backend/scripts/seed.sh)
+    // Names come from the backend seed (backend/k6/lib/seed.js)
     await expect(page.getByRole('cell', { name: 'Nguyễn Văn An', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Đặng Ngọc Lan', exact: true })).toBeVisible();
     // Not the localStorage mock

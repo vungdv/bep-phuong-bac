@@ -27,7 +27,7 @@ export default defineConfig({
     launchOptions: { slowMo },
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  // The two front-end dev servers. The backend stack is started outside Playwright (scripts/stack-up.sh).
+  // The two front-end dev servers. The backend stack is started outside Playwright (make stack-up).
   webServer: [
     {
       command: `VITE_ORDERS_API=orchard VITE_BACKEND_URL=${BACKEND_URL} pnpm --filter @bpb/orders dev`,

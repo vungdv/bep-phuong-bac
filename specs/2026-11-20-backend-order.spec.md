@@ -67,7 +67,7 @@ Systems: **backend** (the OC host), **orders app** (front-end remote) and **adap
 | B4 | Ubiquitous | The backend shall index every `Order` field with SQL field indexing, so that GraphQL can filter on them. |
 | B5 | Ubiquitous | The backend shall read its database provider, connection string and all secrets from the environment or configuration, never from source (12-factor). |
 | B6 | Ubiquitous | The backend shall use PostgreSQL in local development, CI and production. |
-| B7 | Event-driven | When a developer or CI runs `backend/scripts/seed.sh`, the script shall create sample orders for yesterday, today and tomorrow through the public API (a client-credentials token and `POST /api/content`), skip any day that already has orders, and mark only some of yesterday's orders delivered, matching front-end F22 and F36. Amended: a recipe `content` step is static, but the days are relative to today. |
+| B7 | Event-driven | When a developer or CI runs `make seed` (`backend/k6/seed.js`), the script shall create sample orders for yesterday, today and tomorrow through the public API (a client-credentials token and `POST /api/content`), skip any day that already has orders, and mark only some of yesterday's orders delivered, matching front-end F22 and F36. Amended: a recipe `content` step is static, but the days are relative to today. |
 
 ### Read and write API (US6, US7)
 
@@ -235,7 +235,7 @@ Commits: `dca7d4a` backend skeleton, `6d5d8d2` adapter, `6f6f0fd` PKCE sign-in, 
 | G10 | **Config is read once, at tenant creation:** `UI_REDIRECT_URIS` and `CORS_ALLOWED_ORIGINS`. CORS is capped at 4 origins, because one recipe expression cannot produce an array. | Changing an origin later needs a fresh database or an admin edit. | Hosting setup (D5). |
 | G11 | **Token expiry and refresh were not exercised in a browser**, and neither were several `<orders-app>` instances on one page. Unit tests cover both with fakes. | Unseen edge cases in a long-lived session. | Manual check or a longer e2e. |
 | G12 | **A GraphQL `errors` reply (which arrives with HTTP 200) is mapped to `HttpError(200)`** in the adapter. | The status is misleading in logs. Use a distinct error type or status. | Nit. |
-| G13 | **Sample data is a script, not a recipe step**, and a crashed e2e run can leave order 2 delivered. `stack-up.sh` seeds only empty days. | A rerun after a crash may fail until the stack is recreated. | Test hygiene. |
+| G13 | **Sample data is a script, not a recipe step**, and a crashed e2e run can leave order 2 delivered. `make stack-up` seeds only empty days. | A rerun after a crash may fail until the stack is recreated. | Test hygiene. |
 
 ### Open decisions
 

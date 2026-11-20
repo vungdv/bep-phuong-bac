@@ -8,7 +8,7 @@ export default async function globalSetup(): Promise<void> {
   } catch (e) {
     throw new Error(
       `Backend not healthy at ${BACKEND_URL}/health/live (${String(e)}).\n` +
-        'Start it first: apps/e2e/scripts/stack-up.sh',
+        'Start it first: make stack-up',
     );
   }
 }

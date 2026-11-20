@@ -21,7 +21,7 @@ async function fetchToken(): Promise<string> {
   return ((await res.json()) as { access_token: string }).access_token;
 }
 
-/** Local day offset from today in the seed's time zone (Asia/Ho_Chi_Minh), as seed.sh does. */
+/** Local day offset from today in the seed's time zone (Asia/Ho_Chi_Minh), as backend/k6/lib/config.js does. */
 const dayKey = (offset: number): string =>
   new Date(Date.now() + 7 * 3600_000 + offset * 86_400_000).toISOString().slice(0, 10);
 

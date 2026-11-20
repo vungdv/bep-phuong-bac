@@ -5,14 +5,13 @@ One ASP.NET Core host, `Bpb.Backend`, that references `OrchardCore.Application.C
 ## Run
 
 ```sh
-cd backend
-cp .env.example .env          # dev-only values; .env is gitignored
-docker compose up --build -d --wait   # PostgreSQL + backend on http://localhost:5080
-set -a; . ./.env; set +a      # the scripts below read SCRIPT_CLIENT_SECRET, ADMIN_PASSWORD, KITCHEN_* from the environment
-./scripts/create-kitchen-user.sh      # the shared kitchen account (role Kitchen), once; idempotent
-./scripts/seed.sh             # sample orders for yesterday/today/tomorrow (dev only, idempotent)
-./tests/integration.sh        # bash + curl checks against the running stack
-docker compose down -v        # stop and drop the database
+# from the repo root; needs docker, make and k6 (brew install k6)
+make stack-up       # creates backend/.env from .env.example (dev-only, gitignored), starts PostgreSQL + backend on
+                    # http://localhost:5080, creates the kitchen user and seeds sample orders; idempotent
+make test-backend   # k6 integration tests (backend/k6/integration.js) against the running stack
+make seed           # sample orders for yesterday/today/tomorrow only (dev only, idempotent)
+make kitchen-user   # the shared kitchen account (role Kitchen) only; idempotent
+make stack-down     # stop and drop the database
 ```
 
 First start auto-provisions the `Default` tenant (OrchardCore.AutoSetup) and runs the `BpbOrders` recipe. Admin UI: `http://localhost:5080/admin` (user `admin`, password `ADMIN_PASSWORD`).
@@ -23,7 +22,7 @@ First start auto-provisions the `Default` tenant (OrchardCore.AutoSetup) and run
 |---|---|
 | `POSTGRES_PASSWORD` | PostgreSQL password (compose uses it for both containers) |
 | `ADMIN_PASSWORD` | OC admin password (`...AutoSetup__Tenants__0__AdminPassword`) |
-| `KITCHEN_USERNAME`, `KITCHEN_PASSWORD` | the shared kitchen account used by the orders app; read only by `scripts/create-kitchen-user.sh` and the tests, never by the backend container |
+| `KITCHEN_USERNAME`, `KITCHEN_PASSWORD` | the shared kitchen account used by the orders app; read only by `scripts/create-kitchen-user.sh` and the k6 tests, never by the backend container |
 | `UI_REDIRECT_URIS` | optional, space-separated redirect URIs of the public client `bpb-orders-ui` (default `http://localhost:5173/ http://localhost:5174/`); set it for another origin (`OrchardCore__Bpb__UiRedirectUris`, read by the recipe) |
 | `CORS_ALLOWED_ORIGINS` | optional, space- or comma-separated browser origins allowed by CORS (default `http://localhost:5173 http://localhost:5174`; never `*`; at most 4, the recipe has four slots, extras are ignored; `OrchardCore__Bpb__CorsAllowedOrigins`) |
 | `SCRIPT_CLIENT_SECRET` | secret of the confidential client `bpb-orders-script` (`OrchardCore__Bpb__ScriptClientSecret`, read by the recipe via `configuration('Bpb:ScriptClientSecret')`) |
@@ -53,7 +52,7 @@ List a day: `{ order(where:{serviceDate:"2026-11-21"}, orderBy:{createdUtc:ASC})
 - **Scripts and tests**: confidential client `bpb-orders-script`, client credentials, role Administrator.
 - **Shared kitchen account** (one login for every chef): username and password from `KITCHEN_USERNAME` / `KITCHEN_PASSWORD`, role **Kitchen**, not Administrator. The recipe defines the role with these permissions only: `AccessContentApi`, `ApiViewContent`, `ExecuteGraphQL`, `View_Order`, `Edit_Order`, `Publish_Order`. It can read and update orders (and create them, which `Edit_Order` + `Publish_Order` allow); it cannot delete them, create other content types or use the admin UI.
 - **Why a script creates the user**: Orchard Core 3.0.1 has no user REST API, and the recipe `users` step cannot set a password (it only imports a stored hash, which would have to live in source). `scripts/create-kitchen-user.sh` signs in to the admin as `admin` and submits the standard admin "create user" form. It is idempotent (an account that can already sign in is left alone).
-- `tests/oidc-code-flow.sh` runs a real Authorization Code + PKCE round trip with curl (login form included) and prints the token response.
+- `k6/lib/oidc.js` runs a real Authorization Code + PKCE round trip (login form included, no browser); `k6/integration.js` uses it.
 
 ## Local dev without Docker
 

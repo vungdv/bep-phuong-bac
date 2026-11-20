@@ -169,9 +169,15 @@ export default function ({ token }) {
   ok(`kitchen token: POST a ChannelMessage is 403 (${kCreate.status})`, kCreate.status === 403);
   const kRead = asKitchen(`/api/content/${msgId}`);
   ok(`kitchen token: GET a ChannelMessage is 403 (${kRead.status})`, kRead.status === 403);
-  const kGql = asKitchen('/api/graphql', 'POST', JSON.stringify({ query: '{ channelMessage { contentItemId text { text } } }' }));
-  ok(`kitchen token: GraphQL returns no ChannelMessage data (${kGql.status})`,
-    !/k6 schema test|chị đặt 3 phần/.test(kGql.body) && !((kGql.json('data.channelMessage') || []).length));
+  // The query must be valid, so "no data" cannot come from a typo: the admin token sees the message, the kitchen token must not.
+  const channelQuery = JSON.stringify({ query: '{ channelMessage { contentItemId text } }' });
+  const aGql = adminJson('POST', '/api/graphql', channelQuery);
+  ok('admin token: the same GraphQL query lists the ChannelMessage (control)',
+    aGql.status === 200 && (aGql.json('data.channelMessage') || []).some((m) => m.contentItemId === msgId));
+  const kGql = asKitchen('/api/graphql', 'POST', channelQuery);
+  const kGqlData = kGql.status === 200 ? (kGql.json('data.channelMessage') || []) : [];
+  ok(`kitchen token: GraphQL returns an empty ChannelMessage list or errors, never the message (${kGql.status})`,
+    kGqlData.length === 0 && !kGql.body.includes(msgId));
   const kDel = asKitchen(`/api/content/${msgId}`, 'DELETE');
   ok(`kitchen token: DELETE a ChannelMessage is denied (${kDel.status})`, kDel.status === 403);
 

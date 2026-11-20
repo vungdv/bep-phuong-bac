@@ -37,15 +37,17 @@ llm-pull:
 	cd backend && docker compose --profile llm exec ollama ollama pull $(LLM_MODEL)
 
 # Points the backend at the deterministic llm-stub (compose profile `test`) instead of Ollama. `make stack-up` points it back.
+# The timeout is shortened for the test run only (the pipeline test needs an LLM timeout scenario); the default stays 120.
+STUB_LLM_TIMEOUT_SECONDS ?= 5
 stub-up:
 	cd backend && { [ -f .env ] || cp .env.example .env; }
-	cd backend && LLM_ENDPOINT=http://llm-stub:8080 docker compose --profile test up --build -d --wait
+	cd backend && LLM_ENDPOINT=http://llm-stub:8080 LLM_TIMEOUT_SECONDS=$(STUB_LLM_TIMEOUT_SECONDS) docker compose --profile test up --build -d --wait
 
 # Integration tests against the running stack; a second kitchen-user run must report "exists" (idempotent).
 # The LLM is the stub (see stub-up), so no model is needed; the k6 LLM test also reads the stub's request log.
 test-backend: stub-up kitchen-user
 	cd backend && $(LOAD_ENV) && scripts/create-kitchen-user.sh | grep -q exists
-	@cd backend && $(LOAD_ENV) && { k6 run k6/integration.js && k6 run k6/llm-extract.js; rc=$$?; \
+	@cd backend && $(LOAD_ENV) && { k6 run k6/integration.js && k6 run k6/llm-extract.js && k6 run k6/pipeline.js; rc=$$?; \
 	  echo "pointing the backend back at the default LLM endpoint"; docker compose up -d --wait backend; exit $$rc; }
 
 # Temporary public URL through a Cloudflare quick tunnel; resets the backend stack (see deploy/README.md).

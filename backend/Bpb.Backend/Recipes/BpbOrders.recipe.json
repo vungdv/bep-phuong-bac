@@ -1,0 +1,227 @@
+{
+  "name": "BpbOrders",
+  "displayName": "Bep Phuong Bac Orders",
+  "description": "Order content type and API",
+  "author": "bpb",
+  "version": "1.0.0",
+  "issetuprecipe": true,
+  "categories": [],
+  "tags": [],
+  "steps": [
+    {
+      "name": "feature",
+      "enable": [
+        "OrchardCore.Contents",
+        "OrchardCore.ContentTypes",
+        "OrchardCore.ContentFields",
+        "OrchardCore.Apis.GraphQL",
+        "OrchardCore.Users",
+        "OrchardCore.Roles",
+        "OrchardCore.OpenId",
+        "OrchardCore.OpenId.Server",
+        "OrchardCore.Admin",
+        "OrchardCore.AdminMenu",
+        "OrchardCore.Features",
+        "OrchardCore.Settings",
+        "OrchardCore.OpenId.Validation",
+        "OrchardCore.ContentFields.Indexing.SQL",
+        "OrchardCore.Cors",
+        "OrchardCore.HealthChecks"
+      ]
+    },
+    {
+      "name": "ContentDefinition",
+      "ContentTypes": [
+        {
+          "Name": "Order",
+          "DisplayName": "Order",
+          "Settings": {
+            "ContentTypeSettings": {
+              "Creatable": true,
+              "Listable": true,
+              "Securable": true,
+              "Draftable": false,
+              "Versionable": false
+            }
+          },
+          "ContentTypePartDefinitionRecords": [
+            {
+              "PartName": "Order",
+              "Name": "Order",
+              "Settings": {
+                "ContentTypePartSettings": {
+                  "Position": "0"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "ContentParts": [
+        {
+          "Name": "Order",
+          "Settings": {},
+          "ContentPartFieldDefinitionRecords": [
+            {
+              "FieldName": "NumericField",
+              "Name": "No",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "No"
+                },
+                "NumericFieldSettings": {
+                  "Required": true,
+                  "Scale": 0,
+                  "Minimum": 1
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "CustomerName",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Name"
+                },
+                "TextFieldSettings": {
+                  "Required": true
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "NumericField",
+              "Name": "Qty",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Qty"
+                },
+                "NumericFieldSettings": {
+                  "Required": true,
+                  "Scale": 0,
+                  "Minimum": 1
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "Message",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Message"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "ServiceDate",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Service date"
+                },
+                "TextFieldSettings": {
+                  "Required": true
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "BooleanField",
+              "Name": "Delivered",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Delivered"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OpenIdServerSettings",
+      "AccessTokenFormat": 0,
+      "Authority": "",
+      "AllowClientCredentialsFlow": true,
+      "AllowPasswordFlow": false,
+      "AllowRefreshTokenFlow": false,
+      "AllowAuthorizationCodeFlow": false,
+      "UseReferenceAccessTokens": false,
+      "TestingModeEnabled": false,
+      "TokenEndpointPath": "/connect/token",
+      "EnableTokenEndpoint": true,
+      "EnableAuthorizationEndpoint": false
+    },
+    {
+      "name": "OpenIdApplication",
+      "ClientId": "bpb-orders-script",
+      "DisplayName": "Orders scripts and tests",
+      "Type": "confidential",
+      "ClientSecret": "[js: configuration('Bpb:ScriptClientSecret')]",
+      "AllowClientCredentialsFlow": true,
+      "AllowPasswordFlow": false,
+      "AllowRefreshTokenFlow": false,
+      "AllowAuthorizationCodeFlow": false,
+      "AllowImplicitFlow": false,
+      "AllowHybridFlow": false,
+      "AllowLogoutEndpoint": false,
+      "RoleEntries": [
+        {
+          "Name": "Administrator",
+          "Selected": true
+        }
+      ],
+      "ScopeEntries": [],
+      "RedirectUris": "",
+      "PostLogoutRedirectUris": "",
+      "RequireProofKeyForCodeExchange": false,
+      "ConsentType": "explicit"
+    },
+    {
+      "name": "settings",
+      "CorsSettings": {
+        "Policies": [
+          {
+            "Name": "bpb",
+            "AllowedOrigins": [
+              "http://localhost:5173",
+              "http://localhost:5174"
+            ],
+            "AllowAnyOrigin": false,
+            "AllowedMethods": [
+              "GET",
+              "POST",
+              "OPTIONS"
+            ],
+            "AllowAnyMethod": false,
+            "AllowedHeaders": [
+              "Authorization",
+              "Content-Type",
+              "traceparent"
+            ],
+            "AllowAnyHeader": false,
+            "AllowCredentials": false,
+            "IsDefaultPolicy": true,
+            "ExposedHeaders": []
+          }
+        ]
+      }
+    }
+  ]
+}

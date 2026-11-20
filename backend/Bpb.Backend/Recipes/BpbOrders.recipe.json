@@ -31,7 +31,8 @@
         "OrchardCore.Queries",
         "OrchardCore.Queries.Sql",
         "TheAdmin",
-        "OrchardCore.Navigation"
+        "OrchardCore.Navigation",
+        "Bpb.Workflows.Llm"
       ]
     },
     {

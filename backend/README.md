@@ -55,6 +55,21 @@ List a day: `{ order(where:{serviceDate:"2026-11-21"}, orderBy:{createdUtc:ASC})
 - **Why a script creates the user**: Orchard Core 3.0.1 has no user REST API, and the recipe `users` step cannot set a password (it only imports a stored hash, which would have to live in source). `scripts/create-kitchen-user.sh` signs in to the admin as `admin` and submits the standard admin "create user" form. It is idempotent (an account that can already sign in is left alone).
 - `k6/lib/oidc.js` runs a real Authorization Code + PKCE round trip (login form included, no browser); `k6/integration.js` uses it.
 
+## LLM Extract activity (module `Bpb.Workflows.Llm`)
+
+A generic workflow task, **LLM Extract**, for any workflow (content-triggered or not). The author sets, in the activity editor:
+a **System prompt** and a **User prompt** (Liquid, e.g. `{{ Workflow.Input.ContentItem.Content.ChannelMessage.Text.Text }}` or `{{ Workflow.Properties.Text }}`),
+the **Tools** (JSON array of `{ "name", "description", "parameters": <JSON Schema of the arguments> }`), an optional **Model** and a **Result key**
+(default `Llm`). One request is sent (`POST {endpoint}/v1/chat/completions`, `tool_choice: required`, temperature 0, the User prompt as the only user
+message); the tool is never run and nothing is retried.
+
+- **Outcomes**: one per tool name, `Invalid` (no tool call, unknown tool, arguments fail that tool's JSON Schema) and `Failed` (endpoint unset, timeout, HTTP error, empty or unparseable reply, bad tool settings, empty User prompt).
+- **Workflow properties** (prefix = Result key): `LlmTool` (tool called, else empty), `LlmArgsJson` (validated arguments as a JSON **string**; read with `JSON.parse(property('LlmArgsJson'))` in a ScriptTask), `LlmError` (short reason for `Invalid`/`Failed`, else empty). Schema checks use JsonSchema.Net; business rules are the workflow's job (ScriptTask).
+- **Configuration** (`Bpb:Llm:*`, environment `OrchardCore__Bpb__Llm__*`, set from `.env` by compose): `LLM_ENDPOINT` (default `http://ollama:11434`), `LLM_MODEL` (default `qwen2.5:7b-instruct`), `LLM_TIMEOUT_SECONDS` (default 120), `LLM_API_KEY` (optional, never logged). Prompts, message text and arguments are never logged; failures log only a short reason.
+- **Local model**: `make llm-up` starts the `ollama` service (compose profile `llm`, own volume, no host port, so a host Ollama on `localhost:11434` is not touched) and pulls the model once; `make llm-pull` re-pulls. `make stack-up` does not start it (multi-GB download); without it the activity ends `Failed` (`connection failed`). To use the host's Ollama set `LLM_ENDPOINT=http://host.docker.internal:11434` in `.env`.
+- **Tests**: `dotnet test Bpb.Workflows.Llm.Tests` (unit, fake client and handler). `make test-backend` first runs `make stub-up`, which points the backend at `llm-stub` (compose profile `test`, `127.0.0.1:5099`), then `k6/llm-extract.js` runs a tiny workflow through the activity using the test-only recipe `k6/recipes/LlmExtractProbe.recipe.json` (imported through the admin JSON import, which needs the `OrchardCore.Deployment` feature: the test enables it and disables it again, and removes everything it created in teardown). `make test-backend` ends by recreating the backend with the default endpoint, so the stack is back on Ollama afterwards, pass or fail.
+- **`llm-stub`** (`llm-stub/server.cjs`): the reply is chosen from the user message. Markers: `[stub:500]`, `[stub:delay=SECONDS]`, `[stub:garbage]`, `[stub:empty]`, `[stub:notool]`, `[stub:tool=NAME args={...}]`, `[stub:argstring=TEXT]`; otherwise a keyword row of `llm-stub/replies.json` (add canned replies there; arguments may use `{{today}}`, `{{tomorrow}}`, `{{yesterday}}`), else the fallback `ignore_message`. `GET /requests/last` returns the last request body.
+
 ## Local dev without Docker
 
 Run PostgreSQL yourself, export the variables above (plus `ASPNETCORE_URLS`), then `dotnet run --project Bpb.Backend --no-launch-profile`.

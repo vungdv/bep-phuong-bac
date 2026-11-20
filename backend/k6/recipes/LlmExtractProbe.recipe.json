@@ -1,0 +1,231 @@
+{
+  "name": "LlmExtractProbe",
+  "displayName": "LLM Extract probe (tests only)",
+  "description": "Test-only: a tiny workflow (content type LlmProbe -> LlmExtractTask -> LlmProbeResult) used by backend/k6/llm-extract.js, which imports it through the admin JSON import. Not part of the production recipe or the shipped module.",
+  "author": "bpb",
+  "version": "1.0.0",
+  "issetuprecipe": false,
+  "categories": [],
+  "tags": [
+    "test"
+  ],
+  "steps": [
+    {
+      "name": "ContentDefinition",
+      "ContentTypes": [
+        {
+          "Name": "LlmProbe",
+          "DisplayName": "LLM probe (test)",
+          "Settings": {
+            "ContentTypeSettings": {
+              "Creatable": true,
+              "Listable": true,
+              "Securable": true,
+              "Draftable": false,
+              "Versionable": false
+            }
+          },
+          "ContentTypePartDefinitionRecords": [
+            {
+              "PartName": "LlmProbe",
+              "Name": "LlmProbe",
+              "Settings": {
+                "ContentTypePartSettings": {
+                  "Position": "0"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "Name": "LlmProbeResult",
+          "DisplayName": "LLM probe result (test)",
+          "Settings": {
+            "ContentTypeSettings": {
+              "Creatable": true,
+              "Listable": true,
+              "Securable": true,
+              "Draftable": false,
+              "Versionable": false
+            }
+          },
+          "ContentTypePartDefinitionRecords": [
+            {
+              "PartName": "LlmProbeResult",
+              "Name": "LlmProbeResult",
+              "Settings": {
+                "ContentTypePartSettings": {
+                  "Position": "0"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "ContentParts": [
+        {
+          "Name": "LlmProbe",
+          "Settings": {},
+          "ContentPartFieldDefinitionRecords": [
+            {
+              "FieldName": "TextField",
+              "Name": "Text",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Text"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "Name": "LlmProbeResult",
+          "Settings": {},
+          "ContentPartFieldDefinitionRecords": [
+            {
+              "FieldName": "TextField",
+              "Name": "SourceId",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Source id"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "Tool",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Tool"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "ArgsJson",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Arguments JSON"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "Error",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Error"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WorkflowType",
+      "data": [
+        {
+          "WorkflowTypeId": "lp000000000000000000000001",
+          "Name": "LlmExtractProbe",
+          "IsEnabled": true,
+          "IsSingleton": false,
+          "DeleteFinishedWorkflows": false,
+          "Activities": [
+            {
+              "ActivityId": "p1start",
+              "Name": "ContentPublishedEvent",
+              "X": 10,
+              "Y": 10,
+              "IsStart": true,
+              "Properties": {
+                "ContentTypeFilter": [
+                  "LlmProbe"
+                ]
+              }
+            },
+            {
+              "ActivityId": "p2llm",
+              "Name": "LlmExtractTask",
+              "X": 10,
+              "Y": 120,
+              "IsStart": false,
+              "Properties": {
+                "SystemPrompt": {
+                  "Expression": "Today is {{ \"now\" | local | date: \"%Y-%m-%d\" }}. Call exactly one tool."
+                },
+                "UserPrompt": {
+                  "Expression": "{{ Workflow.Input.ContentItem.Content.LlmProbe.Text.Text }}"
+                },
+                "Tools": "[\n  {\n    \"name\": \"probe_alpha\",\n    \"description\": \"Call when the text asks for alpha.\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"label\": {\n          \"type\": \"string\"\n        },\n        \"count\": {\n          \"type\": \"integer\",\n          \"minimum\": 1\n        }\n      },\n      \"required\": [\n        \"label\"\n      ]\n    }\n  },\n  {\n    \"name\": \"probe_beta\",\n    \"description\": \"Call when the text asks for beta.\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"label\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"label\"\n      ]\n    }\n  }\n]",
+                "Model": "",
+                "ResultKey": "Llm"
+              }
+            },
+            {
+              "ActivityId": "p3save",
+              "Name": "CreateContentTask",
+              "X": 10,
+              "Y": 260,
+              "IsStart": false,
+              "Properties": {
+                "ContentType": "LlmProbeResult",
+                "Publish": true,
+                "ContentProperties": {
+                  "Expression": "{\"DisplayText\":\"{{ Workflow.Input.ContentItem.ContentItemId }}\",\"LlmProbeResult\":{\"SourceId\":{\"Text\":\"{{ Workflow.Input.ContentItem.ContentItemId }}\"},\"Tool\":{\"Text\":\"{{ Workflow.Properties.LlmTool }}\"},\"ArgsJson\":{\"Text\":\"{{ Workflow.Properties.LlmArgsJson }}\"},\"Error\":{\"Text\":\"{{ Workflow.Properties.LlmError }}\"}}}"
+                }
+              }
+            }
+          ],
+          "Transitions": [
+            {
+              "Id": 0,
+              "SourceActivityId": "p1start",
+              "SourceOutcomeName": "Done",
+              "DestinationActivityId": "p2llm"
+            },
+            {
+              "Id": 1,
+              "SourceActivityId": "p2llm",
+              "SourceOutcomeName": "probe_alpha",
+              "DestinationActivityId": "p3save"
+            },
+            {
+              "Id": 2,
+              "SourceActivityId": "p2llm",
+              "SourceOutcomeName": "probe_beta",
+              "DestinationActivityId": "p3save"
+            },
+            {
+              "Id": 3,
+              "SourceActivityId": "p2llm",
+              "SourceOutcomeName": "Invalid",
+              "DestinationActivityId": "p3save"
+            },
+            {
+              "Id": 4,
+              "SourceActivityId": "p2llm",
+              "SourceOutcomeName": "Failed",
+              "DestinationActivityId": "p3save"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

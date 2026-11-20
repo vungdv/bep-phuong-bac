@@ -1,4 +1,9 @@
 Bpb.Backend/bin/
 Bpb.Backend/obj/
 Bpb.Backend/App_Data/
+Bpb.Workflows.Llm/bin/
+Bpb.Workflows.Llm/obj/
+Bpb.Workflows.Llm.Tests/
+llm-stub/
+k6/
 .env

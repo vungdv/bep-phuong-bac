@@ -1,0 +1,8 @@
+{
+  "_comment": "Canned replies, first match wins. match is a case-insensitive substring of the user message. tool and arguments follow the activity under test; arguments may use {{today}}, {{tomorrow}}, {{yesterday}} (Asia/Ho_Chi_Minh). A reply is used only if its tool is among the request's tools; otherwise the next one is tried. Add rows here (T3). Marker syntax in the message text overrides these rows, see README.",
+  "replies": [
+    { "match": "stub-probe-alpha", "tool": "probe_alpha", "arguments": { "label": "alpha", "count": 1 } },
+    { "match": "stub-probe-beta", "tool": "probe_beta", "arguments": { "label": "beta" } }
+  ],
+  "fallback": { "tool": "ignore_message", "arguments": { "reason": "stub: no canned reply" } }
+}

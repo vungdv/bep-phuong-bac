@@ -165,7 +165,7 @@ public class LlmExtractTaskTests
         if (kind == "unset") options.Endpoint = "";
 
         var context = MessageContext("x");
-        Assert.Equal("Failed", await Run(Task(Clients.Create(handler, options)), context));
+        Assert.Equal("Failed", await Run(Task(Clients.Real(handler, options)), context));
         Assert.Equal(kind == "unset" ? 0 : 1, handler.Requests.Count); // one attempt at most, never a retry
         Assert.NotEqual("", (string)context.Properties["LlmError"]);
     }

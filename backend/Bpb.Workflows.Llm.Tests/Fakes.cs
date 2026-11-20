@@ -4,6 +4,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json.Nodes;
 using Bpb.Workflows.Llm.Client;
 using Bpb.Workflows.Llm.Options;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using OrchardCore.Workflows.Models;
@@ -68,12 +69,39 @@ public static class Replies
     }.ToJsonString();
 }
 
+/// <summary>A scripted <see cref="IChatClient"/>: records every call and replies or throws as told.</summary>
+public sealed class FakeChatClient : IChatClient
+{
+    public List<(List<ChatMessage> Messages, ChatOptions? Options)> Calls { get; } = new();
+    public Func<CancellationToken, Task<ChatResponse>> Reply { get; set; } = _ => Task.FromResult(new ChatResponse());
+
+    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add((messages.ToList(), options));
+        return Reply(cancellationToken);
+    }
+
+    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+    public void Dispose() { }
+
+    public static FakeChatClient Returning(params AIContent[] contents) =>
+        new() { Reply = _ => Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, [.. contents]))) };
+    public static FakeChatClient Throwing(Exception e) => new() { Reply = _ => throw e };
+    public static FakeChatClient Hanging() => new() { Reply = async ct => { await Task.Delay(Timeout.Infinite, ct); return new ChatResponse(); } };
+}
+
 public static class Clients
 {
-    public static ChatCompletionsClient Create(FakeHandler handler, LlmOptions? options = null, ILogger<ChatCompletionsClient>? logger = null) =>
-        new(new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan },
-            Microsoft.Extensions.Options.Options.Create(options ?? new LlmOptions { Endpoint = "http://llm.test" }),
-            logger ?? new CapturingLogger<ChatCompletionsClient>());
+    /// <summary>The production pipeline (OpenAI SDK, OpenTelemetry, logging) over a fake HTTP handler.</summary>
+    public static MeaiLlmClient Real(FakeHandler handler, LlmOptions o, ILoggerFactory? loggerFactory = null) =>
+        new(LlmChatClientFactory.Create(o, loggerFactory ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance, new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan }),
+            Microsoft.Extensions.Options.Options.Create(o), new CapturingLogger<MeaiLlmClient>());
+
+    public static MeaiLlmClient Create(IChatClient chat, LlmOptions? options = null, ILogger<MeaiLlmClient>? logger = null) =>
+        new(chat, Microsoft.Extensions.Options.Options.Create(options ?? new LlmOptions { Endpoint = "http://llm.test" }),
+            logger ?? new CapturingLogger<MeaiLlmClient>());
 }
 
 /// <summary>Collects every log entry at every level, message and structured values, so tests can prove nothing sensitive is logged.</summary>

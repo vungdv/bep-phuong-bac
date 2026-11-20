@@ -86,7 +86,7 @@ export default function ({ token }) {
     && req.messages[0].role === 'system' && req.messages[0].content === `Today is ${day(0)}. Call exactly one tool.`);
   ok('request: the only user message is the rendered User prompt', (req.messages || []).length === 2
     && req.messages[1].role === 'user' && req.messages[1].content === 'hello stub-probe-alpha please');
-  ok('request: tool_choice required, temperature 0, not streamed', req.tool_choice === 'required' && req.temperature === 0 && req.stream === false);
+  ok('request: tool_choice required, temperature 0, not streamed', req.tool_choice === 'required' && req.temperature === 0 && !req.stream);
   ok('request: both configured tools with their schemas', (req.tools || []).map((t) => t.function.name).join() === 'probe_alpha,probe_beta'
     && req.tools[0].function.parameters.required[0] === 'label');
 

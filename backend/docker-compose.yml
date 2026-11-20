@@ -24,6 +24,9 @@ services:
       - "5080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      # Set to true only behind a trusted TLS-terminating proxy (nginx + tunnel): honours X-Forwarded-Proto/For so the
+      # OIDC issuer and endpoints are https. It trusts any caller's headers, so never expose port 5080 directly then.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${FORWARDED_HEADERS_ENABLED:-false}
       OrchardCore__OrchardCore_AutoSetup__Tenants__0__DatabaseConnectionString: "Host=postgres;Port=5432;Database=bpb;Username=bpb;Password=${POSTGRES_PASSWORD}"
       OrchardCore__OrchardCore_AutoSetup__Tenants__0__AdminPassword: ${ADMIN_PASSWORD:?set in .env}
       OrchardCore__Bpb__ScriptClientSecret: ${SCRIPT_CLIENT_SECRET:?set in .env}

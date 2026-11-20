@@ -27,3 +27,8 @@ seed:
 test-backend: kitchen-user
 	cd backend && $(LOAD_ENV) && scripts/create-kitchen-user.sh | grep -q exists
 	cd backend && $(LOAD_ENV) && k6 run k6/integration.js
+
+# Temporary public URL through a Cloudflare quick tunnel; resets the backend stack (see deploy/README.md).
+.PHONY: public
+public:
+	deploy/quick-tunnel.sh

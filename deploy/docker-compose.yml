@@ -1,0 +1,11 @@
+# Public gateway: nginx serving the built shell and proxying the backend. Started by deploy/quick-tunnel.sh.
+services:
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../apps/shell/dist:/usr/share/nginx/html:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

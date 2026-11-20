@@ -19,10 +19,21 @@ The orders app talks to the Orchard Core backend (PostgreSQL, OpenID Connect wit
 
 ```sh
 pnpm install
-make stack-up                   # backend + PostgreSQL on http://localhost:5080, kitchen user, sample orders
-pnpm --filter @bpb/orders dev   # terminal 1, http://localhost:5174
-pnpm --filter @bpb/shell dev    # terminal 2, http://localhost:5173
 ```
+
+Start the backend + PostgreSQL on http://localhost:5080 (creates the kitchen user and sample orders):
+
+```sh
+make stack-up
+```
+
+Start both frontends (orders app on http://localhost:5174, shell on http://localhost:5173):
+
+```sh
+npm run dev
+```
+
+`npm run dev` runs `pnpm -r --parallel dev` from the repo root, so pnpm must still be installed (`corepack enable`). To run one app alone: `pnpm --filter @bpb/orders dev` or `pnpm --filter @bpb/shell dev`.
 
 Then open `http://localhost:5173/#/order` and sign in with the shared kitchen account: user `kitchen`, password `Kitchen123!dev`.
 

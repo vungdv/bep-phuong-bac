@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 
 export const CORS_ALLOW_METHODS = 'GET, HEAD, PATCH, OPTIONS';
 export const CORS_ALLOW_HEADERS = 'Content-Type, traceparent';
+/** O5: lets browser clients read the echoed trace id. */
+export const CORS_EXPOSE_HEADERS = 'traceparent';
 const PREFLIGHT_MAX_AGE = '600';
 
 /**
@@ -14,7 +16,10 @@ export function registerCors(app: FastifyInstance, allowedOrigins: readonly stri
     const origin = request.headers.origin;
     const isAllowed = typeof origin === 'string' && allowed.has(origin);
     if (isAllowed) {
-      reply.header('Access-Control-Allow-Origin', origin).header('Vary', 'Origin');
+      reply
+        .header('Access-Control-Allow-Origin', origin)
+        .header('Access-Control-Expose-Headers', CORS_EXPOSE_HEADERS)
+        .header('Vary', 'Origin');
     }
     const isPreflight =
       request.method === 'OPTIONS' && typeof origin === 'string' && !!request.headers['access-control-request-method'];

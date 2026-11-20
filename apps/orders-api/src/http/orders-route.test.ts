@@ -1,5 +1,5 @@
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, InjectOptions } from 'fastify';
 import type pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../cli/migrate.js';
@@ -7,12 +7,17 @@ import { createOrdersService } from '../service/orders-service.js';
 import { buildServer } from '../server.js';
 import { PgOrdersRepository } from '../store/pg-orders-repository.js';
 import { createPool } from '../store/pool.js';
+import { createContract } from '../test-contract.js';
 import { startPostgres } from '../test-db.js';
+import { createTestTelemetry } from '../test-telemetry.js';
 
 const okHealth = { ping: async () => true, schemaCurrent: async () => true };
 let container: StartedPostgreSqlContainer;
 let pool: pg.Pool;
 let app: FastifyInstance;
+const contract = createContract();
+/** Every response in this file is also validated against openapi.yaml. */
+const inject = (opts: string | InjectOptions) => contract.inject(app, opts);
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
@@ -28,7 +33,11 @@ beforeAll(async () => {
   container = await startPostgres();
   await migrate(container.getConnectionUri());
   pool = createPool(container.getConnectionUri());
-  app = buildServer({ health: okHealth, service: createOrdersService(new PgOrdersRepository(pool)) });
+  app = buildServer({
+    health: okHealth,
+    service: createOrdersService(new PgOrdersRepository(pool)),
+    telemetry: createTestTelemetry().telemetry,
+  });
   await app.ready();
 });
 
@@ -60,7 +69,7 @@ describe('GET /orders', () => {
     await insert(2, '2026-11-20', 2);
     await insert(4, '2026-11-19', 1);
     await insert(5, '2026-11-21', 1);
-    const res = await app.inject('/orders?serviceDate=2026-11-20');
+    const res = await inject('/orders?serviceDate=2026-11-20');
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toMatch(/^application\/json/);
     expect(res.headers['cache-control']).toBe('no-cache');
@@ -72,7 +81,7 @@ describe('GET /orders', () => {
 
   it('returns [] for an empty day', async () => {
     await insert(1, '2026-11-20', 1);
-    const res = await app.inject('/orders?serviceDate=2026-11-22');
+    const res = await inject('/orders?serviceDate=2026-11-22');
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
   });
@@ -80,7 +89,7 @@ describe('GET /orders', () => {
   it('returns exactly the eight fields with the specified formats', async () => {
     await insert(1, '2026-11-20', 1, { message: 'No chili', at: '2026-11-19T08:30:00+07:00' });
     await insert(2, '2026-11-20', 2);
-    const body = (await app.inject('/orders?serviceDate=2026-11-20')).json();
+    const body = (await inject('/orders?serviceDate=2026-11-20')).json();
     expect(body[0]).toEqual({
       id: id(1),
       no: 1,
@@ -101,7 +110,7 @@ describe('GET /orders', () => {
 
   it('supports HEAD with headers and no body', async () => {
     await insert(1, '2026-11-20', 1);
-    const res = await app.inject({ method: 'HEAD', url: '/orders?serviceDate=2026-11-20' });
+    const res = await inject({ method: 'HEAD', url: '/orders?serviceDate=2026-11-20' });
     expect(res.statusCode).toBe(200);
     expect(res.headers['cache-control']).toBe('no-cache');
     expect(res.body).toBe('');
@@ -109,7 +118,7 @@ describe('GET /orders', () => {
 
   it('ignores unknown query parameters', async () => {
     await insert(1, '2026-11-20', 1);
-    const res = await app.inject('/orders?serviceDate=2026-11-20&foo=bar&foo=baz&x[]=1');
+    const res = await inject('/orders?serviceDate=2026-11-20&foo=bar&foo=baz&x[]=1');
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveLength(1);
   });
@@ -127,7 +136,7 @@ describe('validation', () => {
     ['repeated', '/orders?serviceDate=2026-11-20&serviceDate=2026-11-21'],
     ['hostile', "/orders?serviceDate=2026-11-20'%20OR%20'1'='1"],
   ])('%s date -> 400 problem+json', async (_n, url) => {
-    const res = await app.inject(url);
+    const res = await inject(url);
     const body = expectProblem(res, 400);
     expect(body.type).toBe('https://bepphuongbac.example/problems/invalid-service-date');
     expect(body.title).toBe('Invalid service date');
@@ -135,13 +144,13 @@ describe('validation', () => {
   });
 
   it.each(['POST', 'PUT', 'DELETE', 'PATCH'] as const)('%s /orders -> 405 with Allow', async (method) => {
-    const res = await app.inject({ method, url: '/orders', payload: method === 'DELETE' ? undefined : {} });
+    const res = await inject({ method, url: '/orders', payload: method === 'DELETE' ? undefined : {} });
     expectProblem(res, 405);
     expect(res.headers.allow).toBe('GET, HEAD');
   });
 
   it('unknown path -> 404 problem+json', async () => {
-    expectProblem(await app.inject('/nope'), 404);
+    expectProblem(await inject('/nope'), 404);
   });
 });
 
@@ -185,7 +194,7 @@ describe('error handling', () => {
 describe('PATCH /orders/{id}', () => {
   const MP = { 'content-type': 'application/merge-patch+json' };
   const patch = (url: string, payload: string, headers: Record<string, string> = MP) =>
-    app.inject({ method: 'PATCH', url, payload, headers });
+    inject({ method: 'PATCH', url, payload, headers });
   const stored = async () => (await pool.query('SELECT * FROM orders ORDER BY no')).rows;
 
   it('sets and clears the flag, returning the updated order with no-store', async () => {
@@ -209,7 +218,7 @@ describe('PATCH /orders/{id}', () => {
     const b = await patch(`/orders/${id(1)}`, '{"delivered":true}');
     expect(b.statusCode).toBe(200);
     expect(b.json()).toEqual(a.json());
-    const list = (await app.inject('/orders?serviceDate=2026-11-20')).json();
+    const list = (await inject('/orders?serviceDate=2026-11-20')).json();
     expect(list[0].delivered).toBe(true);
   });
 
@@ -279,7 +288,7 @@ describe('PATCH /orders/{id}', () => {
   });
 
   it.each(['GET', 'PUT', 'DELETE', 'POST'] as const)('%s /orders/{id} -> 405 with Allow: PATCH', async (method) => {
-    const res = await app.inject({ method, url: `/orders/${id(1)}`, payload: method === 'GET' || method === 'DELETE' ? undefined : {} });
+    const res = await inject({ method, url: `/orders/${id(1)}`, payload: method === 'GET' || method === 'DELETE' ? undefined : {} });
     expectProblem(res, 405);
     expect(res.headers.allow).toBe('PATCH');
   });

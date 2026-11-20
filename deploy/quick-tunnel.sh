@@ -30,10 +30,11 @@ done
 echo "public url: $url"
 
 [ -f backend/.env ] || cp backend/.env.example backend/.env
-sed -i.bak -E '/^#? ?(UI_REDIRECT_URIS|CORS_ALLOWED_ORIGINS)=/d' backend/.env && rm -f backend/.env.bak
+sed -i.bak -E '/^#? ?(UI_REDIRECT_URIS|CORS_ALLOWED_ORIGINS|FORWARDED_HEADERS_ENABLED)=/d' backend/.env && rm -f backend/.env.bak
 {
   echo "UI_REDIRECT_URIS=$url/"
   echo "CORS_ALLOWED_ORIGINS=$url"
+  echo "FORWARDED_HEADERS_ENABLED=true"
 } >>backend/.env
 
 make stack-down

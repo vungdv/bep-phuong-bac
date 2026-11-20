@@ -28,4 +28,4 @@ The URL changes on every run and the backend reads its OIDC redirect URIs only w
 
 - Anyone with the URL can reach the backend, which uses the dev passwords from `backend/.env`. Share the URL carefully.
 - Quick tunnels have no uptime guarantee and no SSE support; fine for demos.
-- If sign-in fails with `http://` redirects or an issuer mismatch, the backend has no forwarded-headers handling (nginx already sends `X-Forwarded-Proto`). Add `UseForwardedHeaders` in `Program.cs` as a separate backend change.
+- The script sets `FORWARDED_HEADERS_ENABLED=true` in `backend/.env` (maps to `ASPNETCORE_FORWARDEDHEADERS_ENABLED`) so the backend honours nginx's `X-Forwarded-Proto` and advertises an `https://` issuer. Without it the browser blocks `/connect/token` as mixed content. It trusts any caller's forwarded headers, so only enable it behind the gateway.

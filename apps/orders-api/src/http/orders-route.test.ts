@@ -9,6 +9,7 @@ import { PgOrdersRepository } from '../store/pg-orders-repository.js';
 import { createPool } from '../store/pool.js';
 import { startPostgres } from '../test-db.js';
 
+const okHealth = { ping: async () => true, schemaCurrent: async () => true };
 let container: StartedPostgreSqlContainer;
 let pool: pg.Pool;
 let app: FastifyInstance;
@@ -27,7 +28,7 @@ beforeAll(async () => {
   container = await startPostgres();
   await migrate(container.getConnectionUri());
   pool = createPool(container.getConnectionUri());
-  app = buildServer({ service: createOrdersService(new PgOrdersRepository(pool)) });
+  app = buildServer({ health: okHealth, service: createOrdersService(new PgOrdersRepository(pool)) });
   await app.ready();
 });
 
@@ -147,6 +148,7 @@ describe('validation', () => {
 describe('error handling', () => {
   it('a throwing repository -> 500 problem+json without leaking internals', async () => {
     const bad = buildServer({
+      health: okHealth,
       service: createOrdersService({
         setDelivered: async () => null,
         listByServiceDate: async () => {
@@ -164,6 +166,7 @@ describe('error handling', () => {
 
   it('an unreachable store -> 503 problem+json', async () => {
     const bad = buildServer({
+      health: okHealth,
       service: createOrdersService({
         setDelivered: async () => null,
         listByServiceDate: async () => {
@@ -288,7 +291,7 @@ describe('PATCH /orders/{id}', () => {
         throw new Error('UPDATE orders SET boom at /srv/store.ts:1');
       },
     } as unknown as pg.Pool);
-    const bad = buildServer({ service: createOrdersService(failing), traceId: () => 'abc' });
+    const bad = buildServer({ health: okHealth, service: createOrdersService(failing), traceId: () => 'abc' });
     const res = await bad.inject({ method: 'PATCH', url: `/orders/${id(1)}`, payload: '{"delivered":true}', headers: MP });
     const body = expectProblem(res, 500);
     expect(body.trace_id).toBe('abc');
@@ -299,6 +302,7 @@ describe('PATCH /orders/{id}', () => {
 
   it('an unreachable store on write -> 503', async () => {
     const bad = buildServer({
+      health: okHealth,
       service: createOrdersService({
         listByServiceDate: async () => [],
         setDelivered: async () => {

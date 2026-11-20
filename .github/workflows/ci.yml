@@ -9,9 +9,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -23,3 +23,47 @@ jobs:
         run: |
           mkdir -p apps/shell/dist/remotes/orders
           cp apps/orders/dist/orders-app.js apps/shell/dist/remotes/orders/
+
+  backend:
+    # Real stack: Orchard Core + PostgreSQL via docker compose, k6 integration tests, adapter contract test, Playwright e2e.
+    # The secrets here are the documented dev placeholders from backend/.env.example; the CI stack is ephemeral
+    # and torn down at the end of the job, so nothing sensitive is involved.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: grafana/setup-k6-action@v1
+      - name: Start the backend stack, create the kitchen user, seed (creates backend/.env from the example)
+        run: make stack-up
+      - name: Backend integration tests (k6)
+        run: make test-backend
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Orders adapter contract test
+        run: |
+          set -a; . backend/.env; set +a
+          ORCHARD_URL=http://localhost:5080 ORCHARD_CLIENT_ID=bpb-orders-script \
+            ORCHARD_CLIENT_SECRET="$SCRIPT_CLIENT_SECRET" pnpm --filter @bpb/orders test:contract
+      - name: Install Playwright Chromium
+        run: pnpm --filter @bpb/e2e exec playwright install --with-deps chromium
+      - name: Playwright e2e (headless)
+        run: pnpm --filter @bpb/e2e e2e
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright
+          path: |
+            apps/e2e/playwright-report
+            apps/e2e/test-results
+          if-no-files-found: ignore
+      - name: Backend logs
+        if: failure()
+        working-directory: backend
+        run: docker compose logs
+      - name: Tear down
+        if: always()
+        run: make stack-down

@@ -1,0 +1,4 @@
+Bpb.Backend/bin/
+Bpb.Backend/obj/
+Bpb.Backend/App_Data/
+.env

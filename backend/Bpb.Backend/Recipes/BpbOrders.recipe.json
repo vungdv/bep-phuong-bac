@@ -160,13 +160,34 @@
       "Authority": "",
       "AllowClientCredentialsFlow": true,
       "AllowPasswordFlow": false,
-      "AllowRefreshTokenFlow": false,
-      "AllowAuthorizationCodeFlow": false,
+      "AllowRefreshTokenFlow": true,
+      "AllowAuthorizationCodeFlow": true,
       "UseReferenceAccessTokens": false,
       "TestingModeEnabled": false,
       "TokenEndpointPath": "/connect/token",
       "EnableTokenEndpoint": true,
-      "EnableAuthorizationEndpoint": false
+      "EnableAuthorizationEndpoint": true,
+      "AuthorizationEndpointPath": "/connect/authorize",
+      "EnableLogoutEndpoint": true,
+      "LogoutEndpointPath": "/connect/logout",
+      "RequireProofKeyForCodeExchange": true
+    },
+    {
+      "name": "Roles",
+      "Roles": [
+        {
+          "Name": "Kitchen",
+          "Description": "Shared kitchen account: reads and updates Order content only.",
+          "Permissions": [
+            "AccessContentApi",
+            "ApiViewContent",
+            "ExecuteGraphQL",
+            "View_Order",
+            "Edit_Order",
+            "Publish_Order"
+          ]
+        }
+      ]
     },
     {
       "name": "OpenIdApplication",
@@ -192,6 +213,25 @@
       "PostLogoutRedirectUris": "",
       "RequireProofKeyForCodeExchange": false,
       "ConsentType": "explicit"
+    },
+    {
+      "name": "OpenIdApplication",
+      "ClientId": "bpb-orders-ui",
+      "DisplayName": "Orders app (browser, public client)",
+      "Type": "public",
+      "AllowClientCredentialsFlow": false,
+      "AllowPasswordFlow": false,
+      "AllowRefreshTokenFlow": true,
+      "AllowAuthorizationCodeFlow": true,
+      "AllowImplicitFlow": false,
+      "AllowHybridFlow": false,
+      "AllowLogoutEndpoint": true,
+      "RoleEntries": [],
+      "ScopeEntries": [],
+      "RedirectUris": "[js: configuration('Bpb:UiRedirectUris') || 'http://localhost:5173/ http://localhost:5174/']",
+      "PostLogoutRedirectUris": "[js: configuration('Bpb:UiRedirectUris') || 'http://localhost:5173/ http://localhost:5174/']",
+      "RequireProofKeyForCodeExchange": true,
+      "ConsentType": "implicit"
     },
     {
       "name": "settings",

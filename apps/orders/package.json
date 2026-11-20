@@ -13,6 +13,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5",
     "date-fns": "^4",
+    "oidc-client-ts": "^3.5.0",
     "react": "^19",
     "react-day-picker": "^9",
     "react-dom": "^19"

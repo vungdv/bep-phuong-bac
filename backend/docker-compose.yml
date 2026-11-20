@@ -27,6 +27,7 @@ services:
       OrchardCore__OrchardCore_AutoSetup__Tenants__0__DatabaseConnectionString: "Host=postgres;Port=5432;Database=bpb;Username=bpb;Password=${POSTGRES_PASSWORD}"
       OrchardCore__OrchardCore_AutoSetup__Tenants__0__AdminPassword: ${ADMIN_PASSWORD:?set in .env}
       OrchardCore__Bpb__ScriptClientSecret: ${SCRIPT_CLIENT_SECRET:?set in .env}
+      OrchardCore__Bpb__UiRedirectUris: ${UI_REDIRECT_URIS:-}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/live"]
       interval: 5s

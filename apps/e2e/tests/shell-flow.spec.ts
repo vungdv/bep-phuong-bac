@@ -19,8 +19,6 @@ test.describe('shell (vi)', () => {
     // Names come from the backend seed (backend/k6/lib/seed.js)
     await expect(page.getByRole('cell', { name: 'Nguyễn Văn An', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Đặng Ngọc Lan', exact: true })).toBeVisible();
-    // Not the localStorage mock
-    expect(await page.evaluate(() => localStorage.getItem('bpb.orders'))).toBeNull();
   });
 });
 

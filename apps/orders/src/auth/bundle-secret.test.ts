@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // B11: the orders app is a public client; the built bundle must hold no client secret.
-// Skipped unless the bundle was built (`pnpm --filter @bpb/orders build`, ideally with VITE_ORDERS_API=orchard).
+// Skipped unless the bundle was built (`pnpm --filter @bpb/orders build`).
 const bundlePath = resolve(process.cwd(), 'dist/orders-app.js') // vitest runs in apps/orders;
 const backendDir = resolve(process.cwd(), '../../backend') + '/';
 

@@ -15,6 +15,9 @@ export interface ProblemDetails {
 /** Supplies the active trace id for a request (T5 plugs OpenTelemetry in here). */
 export type TraceIdProvider = (request: FastifyRequest) => string | undefined;
 
+/** Default provider: no active trace. */
+export const NO_TRACE: TraceIdProvider = () => undefined;
+
 export function problem(
   slug: string,
   title: string,
@@ -52,7 +55,7 @@ const CLIENT_TITLES: Record<number, [string, string]> = {
   415: ['unsupported-media-type', 'Unsupported media type'],
 };
 
-export function installProblemHandlers(app: FastifyInstance, traceId: TraceIdProvider = () => undefined): void {
+export function installProblemHandlers(app: FastifyInstance, traceId: TraceIdProvider = NO_TRACE): void {
   app.setErrorHandler((err: FastifyError, request, reply) => {
     const status = typeof err.statusCode === 'number' ? err.statusCode : 500;
     if (status >= 400 && status < 500) {

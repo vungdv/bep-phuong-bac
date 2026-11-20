@@ -1,23 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { parseServiceDate } from '../domain/order.js';
 import type { OrdersService } from '../service/orders-service.js';
-import { problem, sendProblem, type TraceIdProvider } from './problem.js';
-
-const orderSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    no: { type: 'integer' },
-    name: { type: 'string' },
-    qty: { type: 'integer' },
-    message: { type: 'string' },
-    createdAt: { type: 'string' },
-    serviceDate: { type: 'string' },
-    delivered: { type: 'boolean' },
-  },
-  required: ['id', 'no', 'name', 'qty', 'message', 'createdAt', 'serviceDate', 'delivered'],
-  additionalProperties: false,
-} as const;
+import { orderSchema } from './order-schema.js';
+import { NO_TRACE, problem, sendProblem, type TraceIdProvider } from './problem.js';
 
 const listSchema = { response: { 200: { type: 'array', items: orderSchema } } } as const;
 
@@ -26,7 +11,7 @@ export const ORDERS_ALLOW = 'GET, HEAD';
 export function registerOrdersRoutes(
   app: FastifyInstance,
   service: OrdersService,
-  traceId: TraceIdProvider = () => undefined,
+  traceId: TraceIdProvider = NO_TRACE,
 ): void {
   app.get('/orders', { schema: listSchema }, async (request, reply) => {
     const serviceDate = parseServiceDate((request.query as Record<string, unknown>).serviceDate);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseServiceDate } from './order.js';
+import { isUuid, parseServiceDate } from './order.js';
 
 describe('parseServiceDate', () => {
   it.each(['2026-11-20', '2024-02-29', '2000-02-29', '2026-12-31', '2026-01-01'])('accepts %s', (d) => {
@@ -34,5 +34,14 @@ describe('parseServiceDate', () => {
     expect(parseServiceDate(null)).toBeNull();
     expect(parseServiceDate(20261120)).toBeNull();
     expect(parseServiceDate(['2026-11-20'])).toBeNull();
+  });
+});
+
+describe('isUuid', () => {
+  it('validates canonical UUIDs', () => {
+    expect(isUuid('00000000-0000-4000-8000-000000000001')).toBe(true);
+    expect(isUuid('not-a-uuid')).toBe(false);
+    expect(isUuid('00000000-0000-4000-8000-00000000000g')).toBe(false);
+    expect(isUuid(undefined)).toBe(false);
   });
 });

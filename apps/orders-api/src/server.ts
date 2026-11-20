@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { registerOrdersRoutes } from './http/orders-route.js';
+import { registerOrderRoutes } from './http/order-route.js';
 import { installProblemHandlers, type TraceIdProvider } from './http/problem.js';
 import type { OrdersService } from './service/orders-service.js';
 
@@ -15,5 +16,6 @@ export function buildServer({ service, logger = false, traceId }: ServerDeps): F
   const app = Fastify({ logger });
   installProblemHandlers(app, traceId);
   registerOrdersRoutes(app, service, traceId);
+  registerOrderRoutes(app, service, traceId);
   return app;
 }

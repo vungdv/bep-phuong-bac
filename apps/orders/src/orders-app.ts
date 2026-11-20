@@ -1,9 +1,8 @@
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient } from '@tanstack/react-query';
-import { LocalStorageOrdersApi } from './api/local-storage-orders-api';
 import type { OrdersApi } from './api/orders-api';
-import { App } from './app';
+import { App, selectOrdersApi } from './app';
 import { resolveLang } from './i18n/messages';
 import { injectPropertyRules } from './shadow-css';
 import styles from './styles.css?inline';
@@ -30,7 +29,7 @@ class OrdersAppElement extends HTMLElement {
     const mount = document.createElement('div');
     shadow.appendChild(mount);
     this.queryClient = new QueryClient();
-    this.resolvedApi = this.api ?? new LocalStorageOrdersApi(localStorage, 'bpb.orders', Date);
+    this.resolvedApi = this.api ?? selectOrdersApi();
     this.root = createRoot(mount);
     this.render();
   }

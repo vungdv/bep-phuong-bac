@@ -7,6 +7,7 @@
     "dev": "vite",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "test:contract": "vitest run src/api/orchard-orders-api.contract.test.ts",
     "build": "vite build"
   },
   "dependencies": {

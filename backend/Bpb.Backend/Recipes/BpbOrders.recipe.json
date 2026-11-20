@@ -542,6 +542,19 @@
               }
             },
             {
+              "ActivityId": "eo9log",
+              "Name": "LogTask",
+              "X": 10,
+              "Y": 820,
+              "IsStart": false,
+              "Properties": {
+                "LogLevel": 2,
+                "Text": {
+                  "Expression": "Order {{ Workflow.Properties.OrderId }} created from SourceContentItemId={{ Workflow.Properties.SourceId }}"
+                }
+              }
+            },
+            {
               "ActivityId": "eoaextracted",
               "Name": "SetPropertyTask",
               "X": 10,
@@ -671,6 +684,12 @@
             {
               "Id": 11,
               "SourceActivityId": "eo9orderid",
+              "SourceOutcomeName": "Done",
+              "DestinationActivityId": "eo9log"
+            },
+            {
+              "Id": 12,
+              "SourceActivityId": "eo9log",
               "SourceOutcomeName": "Done",
               "DestinationActivityId": "eoaextracted"
             }

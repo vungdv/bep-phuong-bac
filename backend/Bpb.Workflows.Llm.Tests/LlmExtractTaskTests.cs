@@ -282,4 +282,28 @@ public class LlmExtractTaskTests
         var client = new FakeLlmClient { Throw = new OperationCanceledException() };
         await Assert.ThrowsAsync<OperationCanceledException>(() => Run(Task(client)));
     }
+
+    [Fact]
+    public async Task Logs_carry_the_correlation_id_as_SourceContentItemId_and_never_the_message_text()
+    {
+        var logger = new CapturingLogger<LlmExtractTask>();
+        var context = Contexts.New(correlationId: "4abc", input: MessageContext("bí mật 3 phần").Input);
+
+        await Run(Task(FakeLlmClient.Calling("record_order", """{"customerName":"Lan","qty":3}"""), logger), context);
+        await Run(Task(FakeLlmClient.Calling("nope", "{}"), logger), Contexts.New(correlationId: "4abc", input: MessageContext("bí mật 3 phần").Input));
+
+        Assert.Equal(2, logger.Entries.Count);
+        Assert.All(logger.Entries, e => Assert.Contains("SourceContentItemId=4abc", e));
+        Assert.DoesNotContain(logger.Entries, e => e.Contains("bí mật"));
+    }
+
+    [Fact]
+    public async Task Without_a_correlation_id_it_still_logs_and_adds_no_scope()
+    {
+        var logger = new CapturingLogger<LlmExtractTask>();
+        await Run(Task(FakeLlmClient.Calling("record_order", """{"customerName":"Lan","qty":3}"""), logger), Contexts.New(input: MessageContext("x").Input));
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.DoesNotContain("SourceContentItemId", entry);
+    }
 }

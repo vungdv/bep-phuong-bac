@@ -80,14 +80,23 @@ public static class Clients
 public sealed class CapturingLogger<T> : ILogger<T>
 {
     public List<string> Entries { get; } = new();
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+    private readonly List<string> _scopes = new();
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+    {
+        var text = state is IEnumerable<KeyValuePair<string, object>> kv ? string.Join(" ", kv.Select(p => $"{p.Key}={p.Value}")) : state.ToString() ?? "";
+        _scopes.Add(text);
+        return new Scope(() => _scopes.Remove(text));
+    }
     public bool IsEnabled(LogLevel logLevel) => true;
+
+    private sealed class Scope(Action end) : IDisposable { public void Dispose() => end(); }
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
         var text = formatter(state, exception);
         if (state is IEnumerable<KeyValuePair<string, object?>> kv) text += " " + string.Join(" ", kv.Select(p => $"{p.Key}={p.Value}"));
         if (exception is not null) text += " " + exception;
+        if (_scopes.Count > 0) text += " [scope " + string.Join(" ", _scopes) + "]";
         Entries.Add($"{logLevel}: {text}");
     }
 }
@@ -123,7 +132,7 @@ public sealed class FakeExpressionEvaluator : IWorkflowExpressionEvaluator
 
 public static class Contexts
 {
-    public static WorkflowExecutionContext New(IDictionary<string, object>? input = null, IDictionary<string, object>? properties = null) =>
-        new(new WorkflowType(), new Workflow(), input ?? new Dictionary<string, object>(), new Dictionary<string, object>(),
+    public static WorkflowExecutionContext New(IDictionary<string, object>? input = null, IDictionary<string, object>? properties = null, string? correlationId = null) =>
+        new(new WorkflowType(), new Workflow { CorrelationId = correlationId! }, input ?? new Dictionary<string, object>(), new Dictionary<string, object>(),
             properties ?? new Dictionary<string, object>(), new List<ExecutedActivity>(), null, Enumerable.Empty<ActivityContext>());
 }

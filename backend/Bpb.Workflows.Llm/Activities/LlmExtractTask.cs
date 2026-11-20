@@ -23,6 +23,8 @@ public sealed class LlmExtractTask : TaskActivity<LlmExtractTask>
     public const string DefaultResultKey = "Llm";
     public const string Invalid = "Invalid";
     public const string Failed = "Failed";
+    /// <summary>Structured log field shared by the run logs and the order log (spec P23).</summary>
+    public const string SourceContentItemIdField = "SourceContentItemId";
     public static readonly System.Diagnostics.ActivitySource Telemetry = new("Bpb.Workflows.Llm");
 
     private readonly ILlmClient _client;
@@ -91,6 +93,11 @@ public sealed class LlmExtractTask : TaskActivity<LlmExtractTask>
     {
         var key = string.IsNullOrWhiteSpace(ResultKey) ? DefaultResultKey : ResultKey.Trim();
         using var span = Telemetry.StartActivity("llm.extract");
+        // P23: log under the run's correlation id (for ExtractOrder, the source content item id) as SourceContentItemId.
+        // Optional: without a correlation id (E10) the activity logs as before.
+        using var scope = string.IsNullOrWhiteSpace(workflowContext.CorrelationId)
+            ? null
+            : _logger.BeginScope("SourceContentItemId: {SourceContentItemId}", workflowContext.CorrelationId);
 
         string outcome, tool = "", argsJson = "", error = "";
         try

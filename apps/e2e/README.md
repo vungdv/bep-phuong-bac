@@ -10,6 +10,8 @@ pnpm --filter @bpb/e2e e2e                         # headless (CI mode)
 make stack-down                                    # stop and drop the database
 ```
 
+`preorder-pipeline.spec.ts` posts a message to the content API and needs the LLM to be the stub: run `make stub-up` instead of `make stack-up` (`make test-backend` ends by restoring the default endpoint, so run `make stub-up` right before the e2e; it also reads `E2E_SCRIPT_CLIENT_SECRET`, default `dev-script-secret`).
+
 Playwright starts (or reuses) the two Vite dev servers with `VITE_BACKEND_URL`; it does not start the backend, and `globalSetup` fails fast if `/health/live` is not healthy. Contexts use `Asia/Ho_Chi_Minh` and `vi-VN` so the app's "today" matches the seed.
 
 Env (dev defaults from `backend/.env.example`): `E2E_KITCHEN_USERNAME`, `E2E_KITCHEN_PASSWORD`, `E2E_BACKEND_URL`, `E2E_SHELL_URL`. Failure artifacts (trace, video, screenshot) go to `apps/e2e/test-results` (gitignored).

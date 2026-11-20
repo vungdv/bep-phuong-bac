@@ -26,3 +26,10 @@ export function parseServiceDate(input: unknown): string | null {
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] as number;
   return day <= days ? input : null;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True when the input is a canonical UUID string. Pure. */
+export function isUuid(input: unknown): input is string {
+  return typeof input === 'string' && UUID_RE.test(input);
+}

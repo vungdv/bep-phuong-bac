@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import type { Order } from '../domain/order.js';
+import { isUuid, type Order } from '../domain/order.js';
 import type { OrdersRepository } from './orders-repository.js';
 
 interface OrderRow {
@@ -43,7 +43,7 @@ export class PgOrdersRepository implements OrdersRepository {
 
   async setDelivered(id: string, delivered: boolean): Promise<Order | null> {
     // A non-UUID id can never match; avoid a cast error from Postgres.
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+    if (!isUuid(id)) return null;
     const res = await this.pool.query<OrderRow>(
       `UPDATE orders SET delivered = $2 WHERE id = $1::uuid RETURNING ${COLUMNS}`,
       [id, delivered],

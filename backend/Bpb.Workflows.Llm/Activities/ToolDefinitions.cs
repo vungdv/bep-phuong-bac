@@ -38,6 +38,7 @@ public sealed class ToolDefinitions
             if (item is not JsonObject o) throw new FormatException("Each tool must be a JSON object.");
             var name = o["name"] is JsonValue v && v.GetValueKind() == JsonValueKind.String ? v.GetValue<string>().Trim() : "";
             if (name.Length == 0) throw new FormatException("Each tool needs a non-empty name.");
+            if (name is "Invalid" or "Failed") throw new FormatException($"Tool name '{name}' is reserved for a built-in outcome; choose another name.");
             if (!schemas.TryAdd(name, null!)) throw new FormatException($"Tool name '{name}' is used twice.");
             var parameters = o["parameters"] ?? new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() };
             if (parameters is not JsonObject) throw new FormatException($"Tool '{name}': parameters must be a JSON Schema object.");

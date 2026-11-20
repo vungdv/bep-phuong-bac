@@ -9,7 +9,7 @@ public sealed class LlmOptions
     public const string Section = "Bpb:Llm";
     public const int DefaultTimeoutSeconds = 120;
 
-    /// <summary>Base URL of an OpenAI-compatible server; <c>/v1/chat/completions</c> is appended. Empty means "not configured".</summary>
+    /// <summary>Base URL of an OpenAI-compatible server; <c>/v1/chat/completions</c> is appended. Defaults to the in-cluster Ollama service; set it explicitly to empty or blank to mean "not configured" (the activity then ends in the Failed outcome).</summary>
     public string? Endpoint { get; set; } = "http://ollama:11434";
 
     /// <summary>Default model id; a workflow can override it per activity.</summary>

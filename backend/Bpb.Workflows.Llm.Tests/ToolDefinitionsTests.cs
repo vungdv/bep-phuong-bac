@@ -20,6 +20,20 @@ public class ToolDefinitionsTests
     public void A_non_string_description_is_a_format_error(string json) =>
         Assert.Throws<FormatException>(() => ToolDefinitions.Parse(json));
 
+    [Theory]
+    [InlineData("Invalid")]
+    [InlineData("Failed")]
+    [InlineData(" Failed ")]
+    public void A_tool_named_like_a_built_in_outcome_is_a_format_error(string name)
+    {
+        var e = Assert.Throws<FormatException>(() => ToolDefinitions.Parse($$"""[{"name":"{{name}}"}]"""));
+        Assert.Contains("reserved", e.Message);
+    }
+
+    [Fact]
+    public void A_tool_name_differing_only_in_case_from_a_built_in_outcome_is_allowed() =>
+        Assert.Single(ToolDefinitions.Parse("""[{"name":"failed"}]""").Tools);
+
     [Fact]
     public void A_null_description_is_allowed() => Assert.Null(ToolDefinitions.Parse("""[{"name":"a","description":null}]""").Tools[0].Description);
 

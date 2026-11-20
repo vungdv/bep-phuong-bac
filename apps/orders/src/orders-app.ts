@@ -10,7 +10,7 @@ import styles from './styles.css?inline';
 class OrdersAppElement extends HTMLElement {
   static observedAttributes = ['lang', 'route'];
 
-  /** Test seam: set before connecting to replace the localStorage mock. */
+  /** Test seam: set before connecting to replace the Orchard API. */
   api?: OrdersApi;
 
   private root: Root | null = null;

@@ -19,7 +19,7 @@ export interface AuthEnv {
 /** Authority defaults to the backend URL; the redirect URI is the page origin root (what the backend registers). */
 export function authConfigFromEnv(env: AuthEnv, origin: string = window.location.origin): AuthConfig {
   const authority = env.VITE_OIDC_AUTHORITY || env.VITE_BACKEND_URL;
-  if (!authority) throw new Error('VITE_OIDC_AUTHORITY (or VITE_BACKEND_URL) is required when VITE_ORDERS_API=orchard');
+  if (!authority) throw new Error('VITE_OIDC_AUTHORITY (or VITE_BACKEND_URL) is required');
   return {
     authority,
     clientId: env.VITE_OIDC_CLIENT_ID || 'bpb-orders-ui',

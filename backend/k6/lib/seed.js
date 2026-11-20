@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { BASE_URL, day } from './config.js';
 import { JSON_HEADERS, bearer, graphql, scriptToken } from './auth.js';
 
-// name, qty, message, hour, minute (same rows as apps/orders local-storage-orders-api.ts)
+// name, qty, message, hour, minute
 export const ROWS = [
   ['Nguyễn Văn An', 2, 'Ít cay, giao trước 11h'],
   ['Trần Thị Bích', 1, ''],

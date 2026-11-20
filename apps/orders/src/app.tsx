@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { LocalStorageOrdersApi } from './api/local-storage-orders-api';
 import { OrchardOrdersApi } from './api/orchard-orders-api';
 import { authConfigFromEnv, getAuthClient, withReauth, type AuthEnv } from './auth/auth-client';
 import type { OrdersApi } from './api/orders-api';
@@ -11,20 +10,17 @@ import { DatePicker } from './ui/date-picker';
 import { HeaderDate, OrderTable } from './ui/order-table';
 
 /**
- * Chooses the OrdersApi once from Vite env: VITE_ORDERS_API=orchard + VITE_BACKEND_URL, else localStorage.
- * Orchard mode signs in with Authorization Code + PKCE (B11); the localStorage mode needs no auth.
+ * Builds the OrdersApi once from Vite env (VITE_BACKEND_URL, see apps/orders/.env.development).
+ * Signs in with Authorization Code + PKCE (B11).
  */
-export function selectOrdersApi(env: { VITE_ORDERS_API?: string } & AuthEnv = import.meta.env): OrdersApi {
-  if (env.VITE_ORDERS_API === 'orchard') {
-    if (!env.VITE_BACKEND_URL) throw new Error('VITE_BACKEND_URL is required when VITE_ORDERS_API=orchard');
-    const auth = getAuthClient(authConfigFromEnv(env));
-    return new OrchardOrdersApi({
-      baseUrl: env.VITE_BACKEND_URL,
-      getToken: () => auth.getAccessToken(),
-      fetch: withReauth(auth),
-    });
-  }
-  return new LocalStorageOrdersApi(localStorage, 'bpb.orders', Date);
+export function selectOrdersApi(env: AuthEnv = import.meta.env): OrdersApi {
+  if (!env.VITE_BACKEND_URL) throw new Error('VITE_BACKEND_URL is required');
+  const auth = getAuthClient(authConfigFromEnv(env));
+  return new OrchardOrdersApi({
+    baseUrl: env.VITE_BACKEND_URL,
+    getToken: () => auth.getAccessToken(),
+    fetch: withReauth(auth),
+  });
 }
 
 export interface AppProps {

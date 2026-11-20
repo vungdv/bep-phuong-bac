@@ -206,22 +206,56 @@ Each slice is vertically complete inside the orders context (Principle 2).
 4. **UI auth:** Authorization Code + PKCE and the public client (B11).
 5. **Observability:** OpenTelemetry in the backend, `traceparent` in the adapter (B15, B17).
 
-## Not verified
+## Implementation status (slices 1–4 and e2e, built 2026-11-20)
 
-The spike did not run these. Each is an assumption to check in slice 1 or 2.
+Commits: `dca7d4a` backend skeleton, `6d5d8d2` adapter, `6f6f0fd` PKCE sign-in, `7824942` Playwright e2e, `1fb1230` CI backend job and hardening. Slice 5 (observability) is not built.
 
-- **PostgreSQL.** The spike used SQLite. Run during the T1 build: date filters fail there (finding 2), and text equality works.
-- **Cors feature.** I saw only that preflight fails today. The recipe step that configures allowed origins is untested.
-- **Authorization Code + PKCE** with a public client on OC's OpenID server, including how the token carries the user's role.
-- **The recipe `content` step** for sample data, and recipe `AutoSetup` with a PostgreSQL connection string.
-- **OpenTelemetry** on OC 3.0.1, and the container image and health endpoint.
-- **Concurrency:** two ticks from two devices at once (last write wins on a full-item `POST`).
+### Verified by running
 
-## Open questions
+- PostgreSQL 17: text `ServiceDate` equality works; `DateField` and `DateTimeField` filters fail (finding 2).
+- Auto-provisioning with a PostgreSQL connection string, the `BpbOrders` recipe, the health endpoint (`/health/live`) and the container image.
+- CORS: configured origins pass a preflight, others get no `Access-Control-Allow-Origin`, never `*`.
+- Authorization Code + PKCE with a public client, refresh tokens, and the role claim. The `Kitchen` role can read and update orders and gets `403` on delete and on admin endpoints.
+- The adapter against the real backend (contract test, 4 tests) and the whole flow in a real browser (Playwright, 7 tests, headed and headless): sign-in redirect through the shell with the route restored, today's orders, Delivered persisting across a reload and a second fresh login, date picker, English labels, standalone page, `401` without a token.
+- Data-protection keys and tenant settings survive a container recreate (named volumes).
 
-1. **Who signs in to the orders app?** One shared kitchen account, or one account per chef? Per-chef accounts give an audit trail (`Author` is already stored by OC) at no extra code. This decides the login screen in slice 4.
-2. **Service day time zone.** `ServiceDate` is a day string with no time zone, so the front-end's local-day rule (F1) keeps working. Confirm the kitchen is always in `Asia/Ho_Chi_Minh`, because the tenant's `SiteTimeZone` is set to that.
-3. **Is the read-modify-write race acceptable?** If not, take option B.
-4. **Hosting target** for the container and PostgreSQL (the existing CI stages static files only).
-5. **When Zalo ingestion arrives,** should it call the content API directly with a client-credentials token (no new code), or go through a small ingestion service?
-6. **OC version policy.** The spike used 3.0.1. Pin it, and decide how upgrades are tested, since recipe step names and properties changed between OC majors.
+### Known gaps
+
+| # | Gap | Impact | Where it matters |
+|---|---|---|---|
+| G1 | **Slice 5 not built:** no OpenTelemetry in the backend (B15) and no `traceparent` from the adapter (B17). | No distributed traces or correlated logs yet. Principle 3.1 is unmet for this context. | Before production. |
+| G2 | **Concurrent ticks are untested.** A full-item `POST` means the last write wins, and a concurrent edit to another field can be lost. | Low for one kitchen. | Open decision D3. |
+| G3 | **The CI `backend` job has not run on a GitHub runner.** It was checked with actionlint and its steps were run locally. Unverified: `--with-deps` apt installs, artifact upload, docker build time on the runner. | The first CI run may need a fix. | First push. |
+| G4 | **The kitchen user is created by a script** (`backend/scripts/create-kitchen-user.sh`) that drives Orchard's admin form, because the recipe `users` step cannot set a password and OC 3.0.1 has no user API. | An Orchard upgrade can change the form fields and break it. It is a manual step after first start. | Orchard upgrades. |
+| G5 | **PKCE `plain` is accepted** by the server, although the app only sends S256 and the recipe requires PKCE. Forbidding it needs custom C# (an OpenIddict option), which breaks B1. | Only a hostile client can downgrade, but OAuth 2.1 guidance says to disallow `plain`. | Decision D2. |
+| G6 | **High-severity NuGet audit warnings** on transitive packages of OC 3.0.1: `SixLabors.ImageSharp` (several high), `System.Security.Cryptography.Pkcs` (high), `HtmlSanitizer` (high, beta), plus moderate `AngleSharp` and `MySqlConnector`. Media features, HTML fields, uploads and MySQL are not used here. | Low exposure today. | Each Orchard upgrade. Pin patched versions or upgrade OC when a release raises them. |
+| G7 | **Script client has the Administrator role** (`bpb-orders-script`, client credentials). | Acceptable for dev and CI. A leaked secret would give full admin. | Disable it or narrow its role in production. |
+| G8 | **Creation is allowed to the kitchen.** `Edit_Order` plus `Publish_Order` also permit `POST /api/content` without an id, because OC cannot separate create from update. | A kitchen token can create an order. Deletes are denied. | Decision D4. |
+| G9 | **Field rules apply only in the admin UI.** `No` and `Qty` as integers ≥ 1 and the `YYYY-MM-DD` format of `ServiceDate` are not enforced by the content API. | A bad value can be written by an API client. | Add validation if a second writer (Zalo ingestion) arrives. |
+| G10 | **Config is read once, at tenant creation:** `UI_REDIRECT_URIS` and `CORS_ALLOWED_ORIGINS`. CORS is capped at 4 origins, because one recipe expression cannot produce an array. | Changing an origin later needs a fresh database or an admin edit. | Hosting setup (D5). |
+| G11 | **Token expiry and refresh were not exercised in a browser**, and neither were several `<orders-app>` instances on one page. Unit tests cover both with fakes. | Unseen edge cases in a long-lived session. | Manual check or a longer e2e. |
+| G12 | **A GraphQL `errors` reply (which arrives with HTTP 200) is mapped to `HttpError(200)`** in the adapter. | The status is misleading in logs. Use a distinct error type or status. | Nit. |
+| G13 | **Sample data is a script, not a recipe step**, and a crashed e2e run can leave order 2 delivered. `stack-up.sh` seeds only empty days. | A rerun after a crash may fail until the stack is recreated. | Test hygiene. |
+
+### Open decisions
+
+| # | Decision | Options | Recommendation |
+|---|---|---|---|
+| D1 | **B14 wording.** The code replays the update once after a `401` with a renewed token (a `401` means nothing was processed). The spec says the update is never retried. | Amend B14 to allow one replay after a `401`, or restrict the replay to reads. | Amend B14. The replay is safe and bounded to once per 60 seconds. |
+| D2 | **PKCE `plain`** (G5). | Accept and record, or add a few lines of C# to drop `plain`. | Accept for now, revisit at the next Orchard upgrade. |
+| D3 | **Is last-write-wins acceptable** for the update (G2)? | Keep option A, or build option B (thin REST module with `PATCH`). | Keep A until a second writer exists. |
+| D4 | **May the kitchen create orders** (G8)? | Accept, or add a custom permission check (custom code). | Accept; creation by the kitchen is harmless here. |
+| D5 | **Hosting target** for the container and PostgreSQL, and how production sets origins, secrets and key storage (G10). The existing CI stages static files only. | Not chosen. | Decide before any deployment. |
+| D6 | **Per-chef accounts.** The user chose one shared kitchen account for now. OC already stores the `Author` on each change. | Add accounts later at no code cost. | Revisit when an audit trail is needed. |
+| D7 | **Service-day time zone.** `ServiceDate` is a day string with no zone, so the front-end's local-day rule (F1) works. The tenant's `SiteTimeZone` is `Asia/Ho_Chi_Minh`. | Confirm the kitchen is always in that zone. | Confirm. |
+| D8 | **Zalo ingestion.** Call the content API with a client-credentials token (no new code), or add a small ingestion service. With a second writer, G9 needs validation. | Not chosen. | Decide when ingestion is specced. |
+| D9 | **Orchard version policy.** Pin 3.0.1, decide how upgrades are tested (recipe step names changed between majors), and how G4 and G6 are rechecked. | Not chosen. | Pin now; review per release. |
+
+### Differences between this spec's text and the code
+
+These were accepted during the build and are not yet reflected in the requirement wording.
+
+- **B13:** origins come from `CORS_ALLOWED_ORIGINS` (up to 4, never `*`), applied at tenant creation.
+- **B14:** one replay of the update after a `401` (D1).
+- **B16:** the compose stack adds named volumes `appdata` and `dpkeys-host` so the container survives recreation.
+- **B6:** CI uses docker compose with PostgreSQL and the dev placeholder secrets from `backend/.env.example`; the stack is ephemeral.

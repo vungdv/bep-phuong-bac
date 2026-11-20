@@ -13,42 +13,36 @@ A simple app that reads orders from a channel like Zalo and creates/manages orde
 | Docker (with Compose) | backend | https://docs.docker.com/get-docker/ |
 | make, k6 | backend seed and tests | `brew install k6` / https://k6.io |
 
-### Run the stack
+### Architecture
 
-The orders app talks to the Orchard Core backend (PostgreSQL, OpenID Connect with Authorization Code + PKCE), so the backend is required.
+```mermaid
+flowchart LR
+    user(["User"])
+        
+    fe["Frontend Apps"]
 
-```sh
-pnpm install
+    subgraph backend["Backend"]
+        direction TB
+        cm["ContentManagement"]
+        wf["Workflow"]
+    end
+    llm{{"LLM model (OLlama/Qwen)"}}
+
+    user --> fe
+    fe --> cm
+    cm <--> wf
+    wf --> llm
 ```
 
-Start the backend + PostgreSQL on http://localhost:5080 (creates the kitchen user and sample orders):
+### Run
 
 ```sh
-make stack-up
+make dev
 ```
 
-Start both frontends (orders app on http://localhost:5174, shell on http://localhost:5173):
+Installs JS dependencies, starts the backend and PostgreSQL, then both frontends. Open http://localhost:5173/#/order and sign in as `kitchen` / `Kitchen123!dev` (Orchard admin at http://localhost:5080/admin, `admin` / `Admin123!dev`).
 
-```sh
-npm run dev
-```
-
-`npm run dev` runs `pnpm -r --parallel dev` from the repo root, so pnpm must still be installed (`corepack enable`). To run one app alone: `pnpm --filter @bpb/orders dev` or `pnpm --filter @bpb/shell dev`.
-
-Then open `http://localhost:5173/#/order` and sign in with the shared kitchen account: user `kitchen`, password `Kitchen123!dev`.
-
-- `make stack-up` creates `backend/.env` from `backend/.env.example` (dev-only values, gitignored). The first run builds the image and takes about a minute. It is idempotent.
-- Orchard admin UI: `http://localhost:5080/admin`, user `admin`, password `Admin123!dev`.
-- The shell loads the orders remote from `http://localhost:5174/src/orders-app.ts` (`apps/shell/public/host.config.json`), so both dev servers must run. The orders app alone is at `http://localhost:5174`.
-- `VITE_BACKEND_URL` defaults to `http://localhost:5080` (`apps/orders/.env.development`). Override it in `apps/orders/.env` (see `.env.example`).
-
-| Command | Effect |
-|---|---|
-| `make stack-up` | start backend + PostgreSQL, create kitchen user, seed |
-| `make seed` | re-seed sample orders for yesterday/today/tomorrow |
-| `make kitchen-user` | (re)create the shared kitchen account |
-| `make test-backend` | k6 integration tests against the running stack |
-| `make stack-down` | stop the stack and drop the database |
+Other commands: `make stack-up` (no frontends), `make llm-up` (local model, multi-GB), `make stub-up` (test LLM stub), `make test-backend`, `make stack-down` (drops the database). Backend details, the pre-order workflow and its configuration are in [backend/README.md](backend/README.md).
 
 ## Engineering guidelines
 
@@ -63,6 +57,7 @@ The full rules are in [AGENTS.md](AGENTS.md). Summary of what a change must sati
 | `apps/e2e` | Playwright end-to-end tests against the real stack ([README](apps/e2e/README.md)) |
 | `packages/contracts` | Shared contracts between shell and remotes |
 | `backend/` | Orchard Core + PostgreSQL via Docker ([README](backend/README.md)) |
+| `backend/Bpb.Workflows.Llm` | Reusable Orchard workflow module: the generic "LLM Extract" activity (Microsoft.Extensions.AI client), with its tests in `backend/Bpb.Workflows.Llm.Tests` |
 | `specs/`, `docs/` | Specs and architecture notes |
 
 ### 1. Standards first
@@ -94,8 +89,11 @@ pnpm build
 pnpm --filter @bpb/e2e exec playwright install chromium   # once
 pnpm --filter @bpb/e2e e2e:headed   # visible browser
 pnpm --filter @bpb/e2e e2e          # headless
-make test-backend                   # k6 integration tests
+make test-backend                   # k6 integration + pre-order pipeline tests (uses llm-stub)
+dotnet test backend/Bpb.Workflows.Llm.Tests   # LLM Extract activity unit tests
 ```
+
+The pre-order e2e test (`preorder-pipeline.spec.ts`) needs the stub as LLM: run `make stub-up` right before `e2e`, because `make test-backend` ends by restoring the default endpoint.
 
 CI (`.github/workflows/ci.yml`) runs typecheck, tests and build, then the backend stack, k6 tests, the adapter contract test and Playwright. Tests should exercise the same interfaces used in production (REST, OIDC).
 

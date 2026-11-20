@@ -2,10 +2,16 @@
 # The backend scripts and k6 tests read their settings from backend/.env (created from .env.example).
 LOAD_ENV = set -a && . ./.env && set +a
 
-.PHONY: stack-up stack-down kitchen-user seed test-backend llm-up llm-pull stub-up
+.PHONY: dev stack-up stack-down kitchen-user seed test-backend llm-up llm-pull stub-up
 
-# Backend (Orchard Core + PostgreSQL), kitchen user and sample orders. Idempotent; about a minute cold.
+# Everything for local development: JS dependencies, the backend stack, then both frontends (blocks; Ctrl-C stops them).
+dev: stack-up
+	npm run dev
+
+# JS dependencies, then backend (Orchard Core + PostgreSQL), kitchen user and sample orders. Idempotent; about a minute cold.
+# Returns when done (CI and deploy/quick-tunnel.sh call it); `make dev` also starts the frontends.
 stack-up:
+	pnpm install
 	cd backend && { [ -f .env ] || cp .env.example .env; }
 	cd backend && docker compose up --build -d --wait
 	$(MAKE) kitchen-user seed

@@ -1,6 +1,6 @@
 // Backend integration test against a running stack (make stack-up).
 // Run: make test-backend (loads backend/.env), or k6 run k6/integration.js.
-// Env: BASE_URL, SCRIPT_CLIENT_SECRET, KITCHEN_USERNAME, KITCHEN_PASSWORD (required), SEED_UTC_OFFSET_HOURS.
+// Env: BASE_URL, SCRIPT_CLIENT_SECRET, KITCHEN_USERNAME, KITCHEN_PASSWORD, ADMIN_PASSWORD (required), SEED_UTC_OFFSET_HOURS.
 import http from 'k6/http';
 import { check } from 'k6';
 import { BASE_URL, day, required } from './lib/config.js';
@@ -145,6 +145,78 @@ export default function ({ token }) {
     ok(`kitchen token: ${path} needs the cookie login or is denied (${r.status} ${loc})`,
       (r.status === 302 && loc.includes('Login')) || [401, 403, 404].includes(r.status));
   }
+  // --- pre-order schema (P22, P25): ChannelMessage exists, Order.SourceContentItemId is additive, Kitchen is denied ---
+  const adminJson = (method, path, body = null) =>
+    http.request(method, `${BASE_URL}${path}`, body, bearer(token, body ? JSON_HEADERS : {}));
+  const msg = adminJson('POST', '/api/content', JSON.stringify({
+    ContentType: 'ChannelMessage', DisplayText: 'k6 schema test', Published: true,
+    ChannelMessage: {
+      Channel: { Text: 'k6' }, SenderName: { Text: 'Chị Lan' }, Text: { Text: 'chị đặt 3 phần cơm gà cho mai' },
+      SentAt: { Text: '2099-01-01T08:00:00+07:00' },
+    },
+  }));
+  ok(`admin token: POST /api/content creates a ChannelMessage (${msg.status})`, msg.status === 200);
+  const msgId = msg.status === 200 ? msg.json('ContentItemId') : '';
+  const msgBack = adminJson('GET', `/api/content/${msgId}`);
+  ok(`admin token: the ChannelMessage reads back with its fields (${msgBack.status})`,
+    msgBack.status === 200 && msgBack.json('ChannelMessage.Text.Text') === 'chị đặt 3 phần cơm gà cho mai'
+    && msgBack.json('ChannelMessage.SenderName.Text') === 'Chị Lan' && msgBack.json('ChannelMessage.Channel.Text') === 'k6');
+
+  const kCreate = asKitchen('/api/content', 'POST', JSON.stringify({
+    ContentType: 'ChannelMessage', DisplayText: 'kitchen must not', Published: true,
+    ChannelMessage: { Text: { Text: 'x' } },
+  }));
+  ok(`kitchen token: POST a ChannelMessage is 403 (${kCreate.status})`, kCreate.status === 403);
+  const kRead = asKitchen(`/api/content/${msgId}`);
+  ok(`kitchen token: GET a ChannelMessage is 403 (${kRead.status})`, kRead.status === 403);
+  const kGql = asKitchen('/api/graphql', 'POST', JSON.stringify({ query: '{ channelMessage { contentItemId text { text } } }' }));
+  ok(`kitchen token: GraphQL returns no ChannelMessage data (${kGql.status})`,
+    !/k6 schema test|chị đặt 3 phần/.test(kGql.body) && !((kGql.json('data.channelMessage') || []).length));
+  const kDel = asKitchen(`/api/content/${msgId}`, 'DELETE');
+  ok(`kitchen token: DELETE a ChannelMessage is denied (${kDel.status})`, kDel.status === 403);
+
+  // workflows: the kitchen cookie session (not only a bearer token) is refused
+  const kjar = new http.CookieJar();
+  submitLogin(kjar, '/Login', http.get(`${BASE_URL}/Login`, { jar: kjar }).body, kitchenUser, kitchenPassword);
+  for (const path of ['/Admin/Workflows/Types', '/Admin/Workflows/Types/Index']) {
+    const r = http.get(`${BASE_URL}${path}`, { jar: kjar, redirects: 0 });
+    const loc = r.headers.Location || '';
+    ok(`kitchen cookie session: ${path} is denied (${r.status} ${loc})`,
+      r.status === 403 || (r.status === 302 && /AccessDenied|Error\/403|Login/.test(loc)));
+    const t = asKitchen(path);
+    ok(`kitchen token: ${path} is denied (${t.status})`, [302, 401, 403, 404].includes(t.status));
+  }
+  const kAdminMsg = http.get(`${BASE_URL}/Admin/Contents/ContentItems/${msgId}/Edit`, { jar: kjar, redirects: 0 });
+  ok(`kitchen cookie session: admin edit of a ChannelMessage is denied (${kAdminMsg.status})`,
+    kAdminMsg.status === 403 || kAdminMsg.status === 404 || (kAdminMsg.status === 302 && /AccessDenied|Error\/403|Login/.test(kAdminMsg.headers.Location || '')));
+  // the admin side works with no clicks (admin theme + navigation in the recipe)
+  const adminJar = new http.CookieJar();
+  submitLogin(adminJar, '/Login', http.get(`${BASE_URL}/Login`, { jar: adminJar }).body, 'admin', required('ADMIN_PASSWORD'));
+  const wfPage = http.get(`${BASE_URL}/Admin/Workflows/Types`, { jar: adminJar, redirects: 0 });
+  ok(`admin cookie session: /Admin/Workflows/Types renders (${wfPage.status})`, wfPage.status === 200);
+
+  // Order: additive SourceContentItemId; the existing GraphQL shape is unchanged
+  const srcOrder = adminJson('POST', '/api/content', JSON.stringify({
+    ContentType: 'Order', DisplayText: 'k6 source order', Published: true,
+    Order: {
+      No: { Value: 1 }, CustomerName: { Text: 'Chị Lan' }, Qty: { Value: 3 }, Message: { Text: 'cơm gà' },
+      ServiceDate: { Text: '2099-01-01' }, Delivered: { Value: false }, SourceContentItemId: { Text: msgId },
+    },
+  }));
+  ok(`admin token: an Order accepts SourceContentItemId (${srcOrder.status})`,
+    srcOrder.status === 200 && srcOrder.json('Order.SourceContentItemId.Text') === msgId);
+  const srcOrderId = srcOrder.status === 200 ? srcOrder.json('ContentItemId') : '';
+  const shape = gql('{ order(where:{serviceDate:"2099-01-01"}) { contentItemId no customerName qty message serviceDate delivered createdUtc } }');
+  const shaped = shape.status === 200 ? shape.json('data.order') : [];
+  ok(`graphql: existing Order fields unchanged and the new order is listed (${shape.status}, ${shaped.length})`,
+    shaped.length === 1 && shaped[0].customerName === 'Chị Lan' && shaped[0].qty === 3 && shaped[0].delivered === false);
+  const kShape = asKitchen('/api/graphql', 'POST', JSON.stringify({ query: '{ order(where:{serviceDate:"2099-01-01"}) { no customerName qty message serviceDate delivered } }' }));
+  ok(`kitchen token: GraphQL Order shape still readable (${kShape.status})`,
+    kShape.status === 200 && kShape.json('data.order').length === 1 && !kShape.json('errors'));
+  // clean up so the seeded day counts stay exact
+  ok('admin token: cleanup of the test order', adminJson('DELETE', `/api/content/${srcOrderId}`).status === 200);
+  ok('admin token: cleanup of the test ChannelMessage', adminJson('DELETE', `/api/content/${msgId}`).status === 200);
+
   const pw = http.post(`${BASE_URL}/connect/token`, {
     grant_type: 'password', client_id: CLIENT_ID, username: kitchenUser, password: kitchenPassword,
   });

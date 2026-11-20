@@ -26,8 +26,17 @@
         "OrchardCore.OpenId.Validation",
         "OrchardCore.ContentFields.Indexing.SQL",
         "OrchardCore.Cors",
-        "OrchardCore.HealthChecks"
+        "OrchardCore.HealthChecks",
+        "OrchardCore.Workflows",
+        "OrchardCore.Queries",
+        "OrchardCore.Queries.Sql",
+        "TheAdmin",
+        "OrchardCore.Navigation"
       ]
+    },
+    {
+      "name": "themes",
+      "admin": "TheAdmin"
     },
     {
       "name": "ContentDefinition",
@@ -48,6 +57,30 @@
             {
               "PartName": "Order",
               "Name": "Order",
+              "Settings": {
+                "ContentTypePartSettings": {
+                  "Position": "0"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "Name": "ChannelMessage",
+          "DisplayName": "Channel message",
+          "Settings": {
+            "ContentTypeSettings": {
+              "Creatable": true,
+              "Listable": true,
+              "Securable": true,
+              "Draftable": false,
+              "Versionable": false
+            }
+          },
+          "ContentTypePartDefinitionRecords": [
+            {
+              "PartName": "ChannelMessage",
+              "Name": "ChannelMessage",
               "Settings": {
                 "ContentTypePartSettings": {
                   "Position": "0"
@@ -149,6 +182,75 @@
                   "Included": true
                 }
               }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "SourceContentItemId",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Source content item id"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "Name": "ChannelMessage",
+          "Settings": {},
+          "ContentPartFieldDefinitionRecords": [
+            {
+              "FieldName": "TextField",
+              "Name": "Channel",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Channel"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "SenderName",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Sender name"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "Text",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Text"
+                },
+                "TextFieldSettings": {
+                  "Required": true
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
+            },
+            {
+              "FieldName": "TextField",
+              "Name": "SentAt",
+              "Settings": {
+                "ContentPartFieldSettings": {
+                  "DisplayName": "Sent at"
+                },
+                "ContentIndexSettings": {
+                  "Included": true
+                }
+              }
             }
           ]
         }
@@ -175,6 +277,16 @@
     {
       "name": "Roles",
       "Roles": [
+        {
+          "Name": "Anonymous",
+          "Description": "System role. No generic ViewContent: content access is granted per type, so ChannelMessage is not readable by default.",
+          "Permissions": []
+        },
+        {
+          "Name": "Authenticated",
+          "Description": "System role. No generic ViewContent: content access is granted per type, so ChannelMessage is not readable by default.",
+          "Permissions": []
+        },
         {
           "Name": "Kitchen",
           "Description": "Shared kitchen account: reads and updates Order content only.",

@@ -49,6 +49,8 @@ jobs:
             ORCHARD_CLIENT_SECRET="$SCRIPT_CLIENT_SECRET" pnpm --filter @bpb/orders test:contract
       - name: Install Playwright Chromium
         run: pnpm --filter @bpb/e2e exec playwright install --with-deps chromium
+      - name: Point the backend at the LLM stub (test-backend restores the default endpoint; preorder-pipeline.spec needs the stub)
+        run: make stub-up
       - name: Playwright e2e (headless)
         run: pnpm --filter @bpb/e2e e2e
       - name: Upload Playwright artifacts

@@ -18,7 +18,7 @@ async function token(): Promise<string> {
 test('a message created through the content API shows as an order for its service day', async ({ page }) => {
   const tomorrow = dayKey(1);
   const auth = { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' };
-  const text = `[stub:tool=record_order args={"customerName":"${NAME}","qty":37,"serviceDate":"${tomorrow}"}]`;
+  const text = `[stub:tool=record_order args={"qty":37,"serviceDate":"${tomorrow}"}]`;
   let messageId = '';
   let orderId = '';
   try {
@@ -29,7 +29,7 @@ test('a message created through the content API shows as an order for its servic
       signal: AbortSignal.timeout(130_000),
       body: JSON.stringify({
         ContentType: 'ChannelMessage', DisplayText: 'e2e pipeline', Published: true,
-        ChannelMessage: { SenderName: { Text: 'e2e-pipeline' }, Text: { Text: text } },
+        ChannelMessage: { SenderName: { Text: NAME }, Text: { Text: text } },
       }),
     });
     expect(res.status, 'create message failed: the LLM must be the stub, run `make stub-up` right before this test').toBe(200);

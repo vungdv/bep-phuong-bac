@@ -11,7 +11,7 @@
 //
 // Env: BASE_URL, SCRIPT_CLIENT_SECRET, ADMIN_PASSWORD (required), LLM_STUB_URL (default http://localhost:5099),
 //      SEED_UTC_OFFSET_HOURS, TIMEOUT_DELAY_SECONDS (default 8: must exceed Bpb:Llm:TimeoutSeconds, which stub-up sets to 5).
-// Test data: messages carry SenderName "k6-pipeline"; teardown deletes them and the orders made from them. Workflow
+// Test data: messages carry DisplayText "k6 pipeline" (SenderName is "k6-pipeline" unless a test varies it); teardown deletes them and the orders made from them. Workflow
 // instances are kept (spec D7), they disappear with `make stack-down`.
 import http from 'k6/http';
 import { check } from 'k6';
@@ -28,6 +28,7 @@ export const options = {
 const STUB = __ENV.LLM_STUB_URL || 'http://localhost:5099';
 const TIMEOUT_DELAY = Number(__ENV.TIMEOUT_DELAY_SECONDS || 8);
 const SENDER = 'k6-pipeline';
+const DISPLAY_TEXT = 'k6 pipeline'; // marks every test message, whatever its sender, so teardown finds them
 const ok = (name, cond) => check(null, { [name]: () => !!cond });
 
 function adminSession() {
@@ -80,11 +81,11 @@ export default function ({ token }) {
   const maxNo = (date) => Math.max(0, ...gql(`{ order(where:{serviceDate:"${date}"}) { no } }`).order.map((o) => o.no));
 
   /** Publishes a ChannelMessage (the workflow runs inline) and gathers everything the tests assert on. */
-  const send = (text, { id = '' } = {}) => {
+  const send = (text, { id = '', sender = SENDER } = {}) => {
     stub('DELETE', '/requests');
     const body = {
-      ContentType: 'ChannelMessage', DisplayText: 'k6 pipeline', Published: true,
-      ChannelMessage: { SenderName: { Text: SENDER }, Text: { Text: text } },
+      ContentType: 'ChannelMessage', DisplayText: DISPLAY_TEXT, Published: true,
+      ChannelMessage: { SenderName: { Text: sender }, Text: { Text: text } },
     };
     if (id) body.ContentItemId = id;
     const created = api('POST', '/api/content', JSON.stringify(body));
@@ -104,8 +105,8 @@ export default function ({ token }) {
   const o1 = r1.orders[0] || {};
   ok(`order: the message is created (${r1.status})`, r1.status === 200);
   ok(`order: exactly one order for the message (${r1.orders.length})`, r1.orders.length === 1);
-  ok('order: name Lan, qty 3, tomorrow, Delivered false, SourceContentItemId = message id, Message = original text',
-    o1.customerName === 'Lan' && o1.qty === 3 && o1.serviceDate === tomorrow && o1.delivered === false
+  ok('order: name = the sender, qty 3, tomorrow, Delivered false, SourceContentItemId = message id, Message = original text',
+    o1.customerName === SENDER && o1.qty === 3 && o1.serviceDate === tomorrow && o1.delivered === false
     && o1.sourceContentItemId === r1.id && o1.message === text1);
   ok(`order: No is the next number of that service day (${o1.no} after ${noBefore})`, o1.no === noBefore + 1);
   ok('order: it is in the orders app read path for its service day',
@@ -125,8 +126,8 @@ export default function ({ token }) {
     r2.instance && r2.instance.props.ExtractStatus === 'NotAnOrder' && r2.instance.props.LlmTool === 'ignore_message' && r2.orders.length === 0);
 
   // 3. Rejected by P12 or D2/D5 (P15): the model's values are untrusted, nothing is created
-  const rejected = (name, text, reason) => {
-    const r = send(text);
+  const rejected = (name, text, reason, sender = SENDER) => {
+    const r = send(text, { sender });
     ok(`${name}: Rejected "${reason}", no order, the LLM was called once`,
       r.instance && r.instance.props.ExtractStatus === 'Rejected' && r.instance.props.ExtractReason === reason
       && r.orders.length === 0 && r.calls === 1);
@@ -137,8 +138,10 @@ export default function ({ token }) {
   rejected('past date', 'Hùng đặt 2 phần cơm gà hôm qua', 'past date');
   rejected('date that does not exist', '[stub:tool=record_order args={"customerName":"Hùng","qty":2,"serviceDate":"2099-02-30"}]', 'invalid date');
   rejected('date in another format', '[stub:tool=record_order args={"customerName":"Hùng","qty":2,"serviceDate":"21/11/2099"}]', 'invalid date');
-  rejected('blank name', '[stub:tool=record_order args={"customerName":"   ","qty":2,"serviceDate":"{{tomorrow}}"}]', 'invalid customerName');
-  rejected('name over 200 characters', `[stub:tool=record_order args={"customerName":"${'x'.repeat(201)}","qty":2,"serviceDate":"{{tomorrow}}"}]`, 'invalid customerName');
+  // The customer name is the message's SenderName (the LLM is not asked for it), so these two vary the sender.
+  const okArgs = '[stub:tool=record_order args={"qty":2,"serviceDate":"{{tomorrow}}"}]';
+  rejected('blank sender', okArgs, 'invalid senderName', '   ');
+  rejected('sender over 200 characters', okArgs, 'invalid senderName', 'x'.repeat(201));
   rejected('no date (D5)', 'Hùng lấy 4 phần cơm gà', 'no date');
   rejected('several orders in one message (D2)', 'Chị Lan 3 phần và anh Tuấn 2 phần cơm gà mai', 'multiple');
   const today0 = send(`[stub:tool=record_order args={"customerName":"K6 Today","qty":1,"serviceDate":"${today}"}] hôm nay`);
@@ -185,18 +188,19 @@ export default function ({ token }) {
     (req.tools || []).map((t) => t.function.name).join() === 'record_order,ignore_message' && req.tool_choice === 'required'
     && req.temperature === 0 && r6.calls === 1);
   ok('injection: the stored rule that bounds qty is in the workflow, not in the model (qty 999 passes, 1000 does not)',
-    send('[stub:tool=record_order args={"customerName":"K6 Max","qty":999,"serviceDate":"{{tomorrow}}"}]').orders.length === 1);
+    send('[stub:tool=record_order args={"qty":999,"serviceDate":"{{tomorrow}}"}]').orders.length === 1);
 
   // 7. Awkward text survives the Liquid/JSON round trip: quotes, markup, newline, Vietnamese
-  const text7 = '[stub:tool=record_order args={"customerName":"Lan \\"Q\\" Đỗ <b>","qty":2,"serviceDate":"{{tomorrow}}"}] chị "đặt" <i>cơm</i> \\ \n dòng hai';
-  const r7 = send(text7);
+  const sender7 = 'Lan "Q" Đỗ <b>';
+  const text7 = '[stub:tool=record_order args={"qty":2,"serviceDate":"{{tomorrow}}"}] chị "đặt" <i>cơm</i> \\ \n dòng hai';
+  const r7 = send(text7, { sender: sender7 });
   ok('round trip: the order keeps the name with quotes and the message text verbatim',
-    r7.orders.length === 1 && r7.orders[0].customerName === 'Lan "Q" Đỗ <b>' && r7.orders[0].message === text7);
+    r7.orders.length === 1 && r7.orders[0].customerName === sender7 && r7.orders[0].message === text7);
 
   // 8. No assignment (D3): per service day, max + 1, computed in the workflow. Not race-free (see the README).
   const far = day(400);
   const far2 = day(401);
-  const mk = (date) => `[stub:tool=record_order args={"customerName":"K6 No","qty":1,"serviceDate":"${date}"}] no`;
+  const mk = (date) => `[stub:tool=record_order args={"qty":1,"serviceDate":"${date}"}] no`;
   const n1 = send(mk(far)); const n2 = send(mk(far)); const n3 = send(mk(far2));
   ok(`No: the first order of a day gets 1, the second 2, another day starts at 1 (${[n1, n2, n3].map((r) => (r.orders[0] || {}).no)})`,
     (n1.orders[0] || {}).no === 1 && (n2.orders[0] || {}).no === 2 && (n3.orders[0] || {}).no === 1);
@@ -204,11 +208,11 @@ export default function ({ token }) {
   // 9. Replay (P17, P18): a Failed message re-published creates exactly one order, and again creates no second one
   const failedRun = send('[stub:500] chị Mai đặt cơm');
   ok('replay: the first run is Failed, no order', failedRun.instance && failedRun.instance.props.ExtractStatus === 'Failed' && failedRun.orders.length === 0);
-  const fixed = `[stub:tool=record_order args={"customerName":"Mai","qty":2,"serviceDate":"${tomorrow}"}] chị Mai đặt cơm`;
+  const fixed = `[stub:tool=record_order args={"qty":2,"serviceDate":"${tomorrow}"}] chị Mai đặt cơm`;
   const again = send(fixed, { id: failedRun.id }); // same ContentItemId, re-published (the LLM "is back": the stub now answers)
   ok('replay: same message id, a new workflow instance ended Extracted',
     again.id === failedRun.id && again.instance && again.instance.id !== failedRun.instance.id && again.instance.props.ExtractStatus === 'Extracted');
-  ok(`replay: exactly one order after the re-run (${again.orders.length})`, again.orders.length === 1 && again.orders[0].customerName === 'Mai');
+  ok(`replay: exactly one order after the re-run (${again.orders.length})`, again.orders.length === 1 && again.orders[0].customerName === SENDER);
   const third = send(fixed, { id: failedRun.id });
   ok('replay: re-publishing again ends Extracted (duplicate, same OrderId) and still exactly one order',
     third.instance && third.instance.props.ExtractStatus === 'Extracted' && third.instance.props.ExtractReason === 'duplicate'
@@ -229,7 +233,7 @@ export default function ({ token }) {
 export function teardown({ token }) {
   const api = (method, path) => http.request(method, `${BASE_URL}${path}`, null, bearer(token));
   const gql = (q) => graphql(token, q).json('data');
-  const messages = (gql('{ channelMessage { contentItemId senderName } }').channelMessage || []).filter((m) => m.senderName === SENDER);
+  const messages = (gql('{ channelMessage { contentItemId displayText } }').channelMessage || []).filter((m) => m.displayText === DISPLAY_TEXT);
   const ids = messages.map((m) => m.contentItemId);
   const orders = ids.flatMap((id) => gql(`{ order(where:{sourceContentItemId:"${id}"}) { contentItemId } }`).order);
   const failed = [...orders.map((o) => o.contentItemId), ...ids].filter((id) => api('DELETE', `/api/content/${id}`).status !== 200);

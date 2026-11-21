@@ -142,7 +142,8 @@ export default function ({ token }) {
   const okArgs = '[stub:tool=record_order args={"qty":2,"serviceDate":"{{tomorrow}}"}]';
   rejected('blank sender', okArgs, 'invalid senderName', '   ');
   rejected('sender over 200 characters', okArgs, 'invalid senderName', 'x'.repeat(201));
-  rejected('no date (D5)', 'Hùng lấy 4 phần cơm gà', 'no date');
+  const noDate = send('Hùng lấy 4 phần cơm gà');
+  ok('no date: the order is created for today instead of rejected (D5)', noDate.orders.length === 1 && noDate.orders[0].serviceDate === today && noDate.orders[0].qty === 4);
   rejected('several orders in one message (D2)', 'Chị Lan 3 phần và anh Tuấn 2 phần cơm gà mai', 'multiple');
   const today0 = send(`[stub:tool=record_order args={"customerName":"K6 Today","qty":1,"serviceDate":"${today}"}] hôm nay`);
   ok('a service date of today is accepted (P12: today or later)', today0.orders.length === 1 && today0.orders[0].serviceDate === today);

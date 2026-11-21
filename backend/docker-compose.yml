@@ -32,6 +32,16 @@ services:
       OrchardCore__Bpb__ScriptClientSecret: ${SCRIPT_CLIENT_SECRET:?set in .env}
       OrchardCore__Bpb__UiRedirectUris: ${UI_REDIRECT_URIS:-}
       OrchardCore__Bpb__CorsAllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
+      # LLM Extract activity (module Bpb.Workflows.Llm), read as Bpb:Llm:* by the tenant. Default: the LLM server on the
+      # host (the container's localhost is the container itself). For the `ollama` service below set
+      # LLM_ENDPOINT=http://ollama:11434. `make test-backend` points LLM_ENDPOINT at the `llm-stub` service instead.
+      OrchardCore__Bpb__Llm__Endpoint: ${LLM_ENDPOINT:-http://host.docker.internal:11434}
+      OrchardCore__Bpb__Llm__Model: ${LLM_MODEL:-qwen2.5:7b-instruct}
+      OrchardCore__Bpb__Llm__TimeoutSeconds: ${LLM_TIMEOUT_SECONDS:-120}
+      OrchardCore__Bpb__Llm__ApiKey: ${LLM_API_KEY:-}
+    extra_hosts:
+      # host.docker.internal resolves out of the box on Docker Desktop; this makes it work on Linux Docker too.
+      - "host.docker.internal:host-gateway"
     volumes:
       # Orchard tenant state (App_Data: shell settings and the data-protection keys that protect cookies and
       # encrypted tokens). Without it a recreated container re-runs AutoSetup against the existing database and fails.
@@ -44,7 +54,31 @@ services:
       retries: 40
       start_period: 20s
 
+  # Local model server (Ollama, OpenAI-compatible API). Profile `llm`: NOT started by `make stack-up`, because the model is a
+  # multi-GB download. Start it with `make llm-up`, pull the model once with `make llm-pull`. It publishes no host port, so it
+  # never clashes with an Ollama already running on the host (localhost:11434); the backend
+  # reaches that one through the default LLM_ENDPOINT (http://host.docker.internal:11434). To use this service instead set
+  # LLM_ENDPOINT=http://ollama:11434 in .env (`make llm-up` needs it).
+  ollama:
+    profiles: ["llm"]
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Deterministic stand-in for the LLM endpoint, for tests only (see llm-stub/server.cjs). Profile `test`.
+  llm-stub:
+    profiles: ["test"]
+    build: ./llm-stub
+    ports:
+      - "127.0.0.1:${LLM_STUB_PORT:-5099}:8080"
+
 volumes:
   pgdata:
+  ollama:
   appdata:
   dpkeys-host:

@@ -1,0 +1,36 @@
+@model LlmExtractTaskViewModel
+
+<div class="mb-3" asp-validation-class-for="SystemPrompt">
+    <label asp-for="SystemPrompt" class="form-label">@T["System prompt"]</label>
+    <textarea asp-for="SystemPrompt" rows="6" class="form-control text-monospace"></textarea>
+    <span asp-validation-for="SystemPrompt"></span>
+    <span class="hint">Liquid template. The instructions to the model, for example today's date ({{ "now" | local | date: "%Y-%m-%d" }}) and "call exactly one tool".</span>
+</div>
+
+<div class="mb-3" asp-validation-class-for="UserPrompt">
+    <label asp-for="UserPrompt" class="form-label">@T["User prompt"]</label>
+    <textarea asp-for="UserPrompt" rows="4" class="form-control text-monospace"></textarea>
+    <span asp-validation-for="UserPrompt"></span>
+    <span class="hint">Liquid template. The one user message: the untrusted text to extract from, for example {{ Workflow.Input.ContentItem.Content.MyType.Text.Text }} or {{ Workflow.Properties.Text }}. It must not be empty.</span>
+</div>
+
+<div class="mb-3" asp-validation-class-for="Tools">
+    <label asp-for="Tools" class="form-label">@T["Tools (JSON)"]</label>
+    <textarea asp-for="Tools" rows="14" class="form-control text-monospace"></textarea>
+    <span asp-validation-for="Tools"></span>
+    <span class="hint">A JSON array of {"name": "...", "description": "...", "parameters": {JSON Schema of the arguments}}. Each tool name becomes an outcome; Invalid and Failed always exist. The model is forced to call one tool, and its arguments are checked against that tool's schema.</span>
+</div>
+
+<div class="mb-3" asp-validation-class-for="ModelOverride">
+    <label asp-for="ModelOverride" class="form-label">@T["Model (optional)"]</label>
+    <input asp-for="ModelOverride" type="text" class="form-control" />
+    <span asp-validation-for="ModelOverride"></span>
+    <span class="hint">Overrides the default model (Bpb:Llm:Model) for this step.</span>
+</div>
+
+<div class="mb-3" asp-validation-class-for="ResultKey">
+    <label asp-for="ResultKey" class="form-label">@T["Result key"]</label>
+    <input asp-for="ResultKey" type="text" class="form-control" />
+    <span asp-validation-for="ResultKey"></span>
+    <span class="hint">Prefix of the workflow properties written: {key}Tool, {key}ArgsJson (JSON string of the arguments, read it with JSON.parse(property('LlmArgsJson')) in a script) and {key}Error. Default Llm.</span>
+</div>

@@ -32,16 +32,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: grafana/setup-k6-action@v1
-      - name: Start the backend stack, create the kitchen user, seed (creates backend/.env from the example)
-        run: make stack-up
-      - name: Backend integration tests (k6)
-        run: make test-backend
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Start the backend stack, create the kitchen user, seed (creates backend/.env from the example)
+        run: make stack-up
+      - name: Backend integration tests (k6)
+        run: make test-backend
       - name: Orders adapter contract test
         run: |
           set -a; . backend/.env; set +a
@@ -49,6 +49,8 @@ jobs:
             ORCHARD_CLIENT_SECRET="$SCRIPT_CLIENT_SECRET" pnpm --filter @bpb/orders test:contract
       - name: Install Playwright Chromium
         run: pnpm --filter @bpb/e2e exec playwright install --with-deps chromium
+      - name: Point the backend at the LLM stub (test-backend restores the default endpoint; preorder-pipeline.spec needs the stub)
+        run: make stub-up
       - name: Playwright e2e (headless)
         run: pnpm --filter @bpb/e2e e2e
       - name: Upload Playwright artifacts

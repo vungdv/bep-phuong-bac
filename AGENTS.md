@@ -60,9 +60,10 @@
 - **Telemetry Metrics:** Standardize core operational metrics (invocations, latency histograms, error rates) and export asynchronously via standard protocols (OTLP/Prometheus).
 
 ### 2. Test-Driven Verification by Default
+- **BDD:** Practice behavior-driven development; each test names the specific situation (Given/When/Then) and the risk it protects against.
 - **Automated Verification Floor:** Require automated tests for every feature, bug fix, and refactor before merge; never bypass verification.
 - **Seam & Contract Testing:** Test against explicit interface seams; mock only at external boundary interfaces and verify business logic deterministically.
-- **Comprehensive Scenarios:** Test happy paths, edge cases, error conditions, resilience timeouts, and telemetry propagation.
+- **Comprehensive Scenarios:** Organize tests by main scenario first (the happy path of each behavior), then by edge cases, error conditions, resilience (timeouts, retries) and telemetry propagation.
 
 ### 3. Anti-God Class & Anti-God File Architecture
 - **Single Responsibility:** Deconstruct monolithic classes and files into dedicated single-purpose modules (`config`, `auth`, `client`, `domain`, `server`, `telemetry`, `cli`).
